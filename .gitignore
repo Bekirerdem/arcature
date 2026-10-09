@@ -4,3 +4,4 @@ web/dist/
 web/dev-dist/
 .gstack/
 design/
+web/.wrangler/

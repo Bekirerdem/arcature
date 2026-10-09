@@ -83,7 +83,7 @@ function Board() {
       <div className="cursor" aria-hidden="true"><i className="c-needle" /><i className="c-head" /></div>
 
       <div className="strip">
-        <div className="brand"><div className="tape" /><b>Arcature</b><span>{t("l.tagline")}</span></div>
+        <div className="brand"><div className="tape" /><b>Keyarc</b><span>{t("l.tagline")}</span></div>
         <nav className="navcard" aria-label="Main">
           <a href="#but">{t("l.nav.why")}</a>
           <a href="#so">{t("l.nav.how")}</a>

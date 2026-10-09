@@ -1,4 +1,4 @@
-import { createPublicClient, defineChain, http } from "viem";
+import { createPublicClient, defineChain, fallback, http } from "viem";
 import { createConfig } from "wagmi";
 import { injected } from "wagmi/connectors";
 
@@ -11,8 +11,11 @@ export const arc = defineChain({
   contracts: { multicall3: { address: "0xcA11bde05977b3631167028862bE2a173976CA11" } },
 });
 
-// Arc's public RPC rate-limits bursts (-32005); retry with backoff instead of surfacing errors.
-const transport = http("https://rpc.mainnet.arc.io", { retryCount: 6, retryDelay: 500, batch: { wait: 30 } });
+// Reads go through our same-origin /rpc relay (Cloudflare edge) first: some networks get 503s without
+// CORS headers from Arc's public RPC. Direct RPC stays as a fallback, e.g. for local dev without functions.
+const opts = { retryCount: 4, retryDelay: 500, batch: { wait: 30 } } as const;
+const relay = typeof window !== "undefined" && window.location.hostname !== "localhost" ? [http("/rpc", opts)] : [];
+const transport = fallback([...relay, http("https://rpc.mainnet.arc.io", opts)]);
 
 export const publicClient = createPublicClient({ chain: arc, transport });
 

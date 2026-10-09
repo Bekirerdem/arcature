@@ -147,3 +147,6 @@ table.simple td, table.simple th { text-align: left; padding: 8px 4px; border-bo
 .langswitch button { font-family: var(--f-mono); font-size: 11px; font-weight: 600; color: var(--paper); background: transparent; border: 0; padding: 6px 9px; cursor: pointer; min-height: 30px; transition: background 0.18s var(--e-land), color 0.18s var(--e-land); }
 .langswitch button.on { background: var(--glow); color: var(--ink); }
 .langswitch button:focus-visible { outline: 2px dashed var(--glow); outline-offset: 2px; }
+
+.brandrow { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.brandrow .brand span { white-space: nowrap; }

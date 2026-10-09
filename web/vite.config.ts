@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "landing/*"],
       manifest: {
-        name: "Arcature — the guild chest, onchain",
-        short_name: "Arcature",
+        name: "Keyarc — the guild chest, onchain",
+        short_name: "Keyarc",
         description: "A shared chest on Arc for teams that earn together.",
         theme_color: "#1d1a16",
         background_color: "#b9773f",

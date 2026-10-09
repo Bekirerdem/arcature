@@ -66,6 +66,13 @@ export default function Home() {
           </div>
         )}
         {address && mine.isLoading && <div className="card"><div className="skeleton" style={{ height: 60 }} /></div>}
+        {address && mine.isError && (
+          <div className="card tilt-l">
+            <p className="note">{t("net.down")}</p>
+            <p className="hint" style={{ marginTop: 8 }}>{t("net.downBody")}</p>
+            <button className="btn small" style={{ marginTop: 12 }} onClick={() => mine.refetch()}>{t("net.retry")}</button>
+          </div>
+        )}
         {address && mine.data && mine.data.length === 0 && (
           <div className="card tilt-r empty">
             <p className="note">{t("home.empty")}</p>

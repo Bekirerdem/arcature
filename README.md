@@ -1,4 +1,4 @@
-# Arcature
+# Keyarc
 
 **A shared chest on Arc for teams that earn together.**
 

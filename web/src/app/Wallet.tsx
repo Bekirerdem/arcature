@@ -46,7 +46,7 @@ export function Wallet() {
       </div>
       <div className="mono" style={{ marginTop: 8 }}>{short(address)}</div>
       {onArc ? (
-        <div className="amount" style={{ marginTop: 6 }}>{bal.data !== undefined ? usdc(bal.data) : "…"}<small>USDC</small></div>
+        <div className="amount" style={{ marginTop: 6 }}>{bal.data !== undefined ? usdc(bal.data) : bal.isError ? "—" : "…"}<small>USDC</small></div>
       ) : (
         <button className="btn red small" style={{ marginTop: 10 }} onClick={() => switchToArc()}>{t("wallet.switch")}</button>
       )}
@@ -66,9 +66,9 @@ export function OnArc({ children }: { children: ReactNode }) {
 export function Brand() {
   const { t } = useLang();
   return (
-    <div className="between" style={{ alignItems: "flex-start" }}>
+    <div className="brandrow">
       <Link className="brand" to="/">
-        <b>Arcature</b>
+        <b>Keyarc</b>
         <span>{t("tagline")}</span>
       </Link>
       <LangSwitch />

@@ -8,7 +8,7 @@ const CHUNK = 4_900n;
 type Cached = { from: string; to: string; logs: SerializedLog[] };
 type SerializedLog = { blockNumber: string; transactionHash: string; logIndex: number; data: `0x${string}`; topics: `0x${string}`[] };
 
-const key = (a: Address) => `arcature:logs:v1:${a.toLowerCase()}`;
+const key = (a: Address) => `keyarc:logs:v1:${a.toLowerCase()}`;
 
 function load(a: Address): Cached | null {
   try {
@@ -29,7 +29,7 @@ function save(a: Address, c: Cached) {
 
 /** First block where `a` has code (binary search on eth_getCode). */
 export async function creationBlock(a: Address): Promise<bigint> {
-  const cachedKey = `arcature:born:${a.toLowerCase()}`;
+  const cachedKey = `keyarc:born:${a.toLowerCase()}`;
   try {
     const hit = localStorage.getItem(cachedKey);
     if (hit) return BigInt(hit);

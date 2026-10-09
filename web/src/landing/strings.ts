@@ -85,5 +85,5 @@ export const L = defineStrings({
   ],
   "l.close.contract": ["Read the contract", "Kontratı incele"],
   "l.foot.a": ["Built on Arc · settled in USDC", "Arc üzerinde · USDC ile ödenir"],
-  "l.foot.b": ["Arcature · live on Arc mainnet", "Arcature · Arc mainnet'te canlı"],
+  "l.foot.b": ["Keyarc · live on Arc mainnet", "Keyarc · Arc mainnet'te canlı"],
 });

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { duration } from "./format";
 
 export type Lang = "en" | "tr";
-const KEY = "arcature:lang";
+const KEY = "keyarc:lang";
 
 function initial(): Lang {
   try {

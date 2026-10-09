@@ -252,6 +252,11 @@ defineStrings({
   "err.InsufficientPool": ["Not enough in this period's pot.", "Bu dönem birikende yeterli para yok."],
   "err.InsufficientReserve": ["Not enough in the reserve.", "Yedekte yeterli para yok."],
 
+  // reachability
+  "net.down": ["Can't reach Arc right now.", "Şu an Arc'a ulaşılamıyor."],
+  "net.downBody": ["The network didn't answer. Your funds are safe on chain; try again in a moment.", "Ağ cevap vermedi. Paran zincirde güvende; birazdan tekrar dene."],
+  "net.retry": ["Try again", "Tekrar dene"],
+
   // time
   "time.now": ["now", "şimdi"],
   "time.d": ["d", "g"],

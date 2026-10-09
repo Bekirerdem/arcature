@@ -9,7 +9,7 @@ export const pct = (bps: number) => `${(bps / 100).toLocaleString("en-US", { max
 export function duration(seconds: number) {
   if (seconds <= 0) return "now";
   const d = Math.floor(seconds / 86400), h = Math.floor((seconds % 86400) / 3600), m = Math.floor((seconds % 3600) / 60);
-  if (d) return `${d}d ${h}h`;
-  if (h) return `${h}h ${m}m`;
+  if (d) return h ? `${d}d ${h}h` : `${d}d`;
+  if (h) return m ? `${h}h ${m}m` : `${h}h`;
   return `${Math.max(m, 1)}m`;
 }

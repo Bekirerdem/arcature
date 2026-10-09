@@ -121,7 +121,7 @@ export default function Pay() {
       </main>
       <aside className="side">
         <Wallet />
-        {chest && <Link className="btn ghost small" to={`/c/${chest}`}>Look inside this chest →</Link>}
+        {chest && <Link className="btn ghost small" style={{ alignSelf: "flex-start" }} to={`/c/${chest}`}>Look inside this chest →</Link>}
       </aside>
     </div>
   );

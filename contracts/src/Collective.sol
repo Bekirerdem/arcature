@@ -24,7 +24,7 @@ contract Collective is Initializable, ReentrancyGuard {
     uint64 public constant PROPOSAL_TTL = 7 days;
 
     enum InvoiceStatus { None, Open, Paid, Cancelled }
-    enum Kind { SetRules, AddMember, RemoveMember, SetAgent, SetPayee, ReleaseReserve, Attribute, Expense }
+    enum Kind { SetRules, AddMember, RemoveMember, SetAgent, SetPayee, ReleaseReserve, Attribute, Expense, SettleInvoice }
 
     struct Invoice {
         uint256 amount;
@@ -82,6 +82,8 @@ contract Collective is Initializable, ReentrancyGuard {
         bytes32 indexed id, address indexed creator, uint256 amount, address payer, address[] contributors, uint16[] sharesBps
     );
     event InvoicePaid(bytes32 indexed id, address indexed payer, uint256 amount, uint256 toReserve);
+    /// @notice An invoice settled from unattributed inflow (e.g. a CCTP mint from another chain).
+    event InvoiceSettled(bytes32 indexed id, bytes32 ref, uint256 amount);
     event InvoiceCancelled(bytes32 indexed id);
     event Credited(uint256 indexed period, address indexed member, uint256 amount);
     event Attributed(address indexed member, uint256 amount, bytes32 ref);
@@ -222,15 +224,42 @@ contract Collective is Initializable, ReentrancyGuard {
         if (inv.amount != expectedAmount) revert AmountMismatch();
         if (inv.payer != address(0) && inv.payer != msg.sender) revert WrongPayer();
         inv.status = InvoiceStatus.Paid;
+        usdc.safeTransferFrom(msg.sender, address(this), inv.amount);
+        _creditInvoice(id, inv, msg.sender);
+    }
+
+    /// @notice Agent ties money that arrived without a reference (cross-chain CCTP mint) to an open
+    ///         invoice, within its per-period cap. `ref` is the inflow's tx hash and is usable once.
+    function settleInvoice(bytes32 id, bytes32 ref) external onlyAgent nonReentrant {
+        if (ref == bytes32(0)) revert RefRequired();
+        uint256 amount = _invoices[id].amount;
+        if (attributedThisPeriod + amount > _rules.autoAttributeCap) revert AboveCap();
+        attributedThisPeriod += amount;
+        _settle(id, ref);
+    }
+
+    function _settle(bytes32 id, bytes32 ref) internal {
+        Invoice storage inv = _invoices[id];
+        if (inv.status != InvoiceStatus.Open) revert InvoiceNotOpen();
+        if (inv.amount > unattributed()) revert ExceedsUnattributed();
+        if (ref != bytes32(0)) {
+            if (usedRef[ref]) revert RefAlreadyUsed();
+            usedRef[ref] = true;
+        }
+        inv.status = InvoiceStatus.Paid;
+        _creditInvoice(id, inv, address(0));
+        emit InvoiceSettled(id, ref, inv.amount);
+    }
+
+    function _creditInvoice(bytes32 id, Invoice storage inv, address payer) internal {
         uint256 amount = inv.amount;
-        usdc.safeTransferFrom(msg.sender, address(this), amount);
         uint256 toReserve = _takeReserve(amount);
         pool += amount - toReserve;
         uint256 n = inv.contributors.length;
         for (uint256 i; i < n; ++i) {
             _addCredit(inv.contributors[i], (amount * inv.sharesBps[i]) / BPS);
         }
-        emit InvoicePaid(id, msg.sender, amount, toReserve);
+        emit InvoicePaid(id, payer, amount, toReserve);
     }
 
     /// @notice Agent ties unattributed inflow (x402 sale, plain transfer) to a member, within its cap.
@@ -293,7 +322,7 @@ contract Collective is Initializable, ReentrancyGuard {
         bool member = isMember[msg.sender];
         if (!member) {
             if (msg.sender != agent || agent == address(0)) revert NotMemberOrAgent();
-            if (kind != Kind.Attribute && kind != Kind.Expense) revert AgentCannotPropose(kind);
+            if (kind != Kind.Attribute && kind != Kind.Expense && kind != Kind.SettleInvoice) revert AgentCannotPropose(kind);
         }
         id = _proposals.length;
         uint64 executableAt = uint64(block.timestamp) + _rules.timelock;
@@ -487,6 +516,8 @@ contract Collective is Initializable, ReentrancyGuard {
         } else if (kind == Kind.Attribute) {
             (address member, uint256 amount) = abi.decode(payload, (address, uint256));
             _attribute(member, amount, ref);
+        } else if (kind == Kind.SettleInvoice) {
+            _settle(abi.decode(payload, (bytes32)), ref);
         } else if (kind == Kind.Expense) {
             (address to, uint256 amount) = abi.decode(payload, (address, uint256));
             // A vote the agent opened can only pay an allowlisted payee: a fooled agent's convincing

@@ -120,15 +120,15 @@ contract HardeningTest is CollectiveBase {
         vm.prank(client);
         usdc.transfer(address(c), 300 * USDC);
         vm.startPrank(agent);
-        c.attribute(mehmet, 60 * USDC, bytes32(0));
+        c.attribute(mehmet, 60 * USDC, keccak256("inflow-5"));
         vm.expectRevert(Collective.AboveCap.selector);
-        c.attribute(mehmet, 60 * USDC, bytes32(0)); // 120 > 100 cap this period
+        c.attribute(mehmet, 60 * USDC, keccak256("inflow-6")); // 120 > 100 cap this period
         vm.stopPrank();
         vm.warp(block.timestamp + 30 days);
         vm.prank(ali);
         c.distribute();
         vm.prank(agent);
-        c.attribute(mehmet, 60 * USDC, bytes32(0)); // new period, cap reset
+        c.attribute(mehmet, 60 * USDC, keccak256("inflow-7")); // new period, cap reset
     }
 
     // ── I4: invoice ids are bound to their creator; payment is bound to the amount ──

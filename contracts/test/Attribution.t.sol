@@ -30,28 +30,28 @@ contract AttributionTest is CollectiveBase {
         _x402Sale(10 * USDC);
         vm.prank(agent);
         vm.expectRevert(Collective.ExceedsUnattributed.selector);
-        c.attribute(mehmet, 11 * USDC, bytes32(0));
+        c.attribute(mehmet, 11 * USDC, keccak256("inflow-1"));
     }
 
     function test_agentCannotAttributeAboveCap() public {
         _x402Sale(150 * USDC);
         vm.prank(agent);
         vm.expectRevert(Collective.AboveCap.selector);
-        c.attribute(mehmet, 150 * USDC, bytes32(0));
+        c.attribute(mehmet, 150 * USDC, keccak256("inflow-2"));
     }
 
     function test_agentCannotAttributeToNonMember() public {
         _x402Sale(10 * USDC);
         vm.prank(agent);
         vm.expectRevert(abi.encodeWithSelector(Collective.NotAMember.selector, client));
-        c.attribute(client, 10 * USDC, bytes32(0));
+        c.attribute(client, 10 * USDC, keccak256("inflow-3"));
     }
 
     function test_memberCannotUseAgentPath() public {
         _x402Sale(10 * USDC);
         vm.prank(ali);
         vm.expectRevert(Collective.NotAgent.selector);
-        c.attribute(ali, 10 * USDC, bytes32(0));
+        c.attribute(ali, 10 * USDC, keccak256("inflow-4"));
     }
 
     function test_aboveCapGoesThroughVote() public {

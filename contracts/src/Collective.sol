@@ -74,6 +74,8 @@ contract Collective is Initializable, ReentrancyGuard {
     mapping(bytes32 => Invoice) internal _invoices;
     Proposal[] internal _proposals;
     mapping(uint256 => mapping(address => bool)) public hasVoted;
+    /// @notice Inflow references (e.g. the incoming tx hash) already attributed; makes agent retries idempotent.
+    mapping(bytes32 => bool) public usedRef;
 
     event CollectiveInitialized(string name, address[] members, address agent);
     event InvoiceCreated(
@@ -110,6 +112,9 @@ contract Collective is Initializable, ReentrancyGuard {
     error ProposalCancelled();
     error NotProposer();
     error NotVoted();
+    error NotInvoiceOwner();
+    error RefAlreadyUsed();
+    error RefRequired();
     error InvoiceNotOpen();
     error WrongPayer();
     error ZeroAmount();
@@ -200,9 +205,11 @@ contract Collective is Initializable, ReentrancyGuard {
         emit InvoiceCreated(id, msg.sender, amount, payer, contributors, sharesBps);
     }
 
+    /// @notice Members may cancel any open invoice; the agent only the invoices it created itself.
     function cancelInvoice(bytes32 id) external onlyMemberOrAgent {
         Invoice storage inv = _invoices[id];
         if (inv.status != InvoiceStatus.Open) revert InvoiceNotOpen();
+        if (!isMember[msg.sender] && inv.creator != msg.sender) revert NotInvoiceOwner();
         inv.status = InvoiceStatus.Cancelled;
         emit InvoiceCancelled(id);
     }
@@ -228,6 +235,7 @@ contract Collective is Initializable, ReentrancyGuard {
 
     /// @notice Agent ties unattributed inflow (x402 sale, plain transfer) to a member, within its cap.
     function attribute(address member, uint256 amount, bytes32 ref) external onlyAgent nonReentrant {
+        if (ref == bytes32(0)) revert RefRequired();
         if (attributedThisPeriod + amount > _rules.autoAttributeCap) revert AboveCap();
         attributedThisPeriod += amount;
         _attribute(member, amount, ref);
@@ -333,7 +341,7 @@ contract Collective is Initializable, ReentrancyGuard {
         if (block.timestamp > pr.expiresAt) revert ProposalExpired();
         if (pr.votes < pr.votesNeeded) revert NoQuorum();
         pr.executed = true;
-        _apply(pr.kind, pr.payload, pr.ref);
+        _apply(pr.kind, pr.payload, pr.ref, pr.proposer);
         emit Executed(id, pr.kind);
     }
 
@@ -390,6 +398,10 @@ contract Collective is Initializable, ReentrancyGuard {
 
     function _attribute(address member, uint256 amount, bytes32 ref) internal {
         if (amount == 0) revert ZeroAmount();
+        if (ref != bytes32(0)) {
+            if (usedRef[ref]) revert RefAlreadyUsed();
+            usedRef[ref] = true;
+        }
         if (!isMember[member]) revert NotAMember(member);
         if (amount > unattributed()) revert ExceedsUnattributed();
         uint256 toReserve = _takeReserve(amount);
@@ -428,7 +440,7 @@ contract Collective is Initializable, ReentrancyGuard {
         emit Voted(id, msg.sender);
     }
 
-    function _apply(Kind kind, bytes memory payload, bytes32 ref) internal {
+    function _apply(Kind kind, bytes memory payload, bytes32 ref, address proposer) internal {
         if (kind == Kind.SetRules) {
             Rules memory r = abi.decode(payload, (Rules));
             _validateRules(r);
@@ -477,6 +489,9 @@ contract Collective is Initializable, ReentrancyGuard {
             _attribute(member, amount, ref);
         } else if (kind == Kind.Expense) {
             (address to, uint256 amount) = abi.decode(payload, (address, uint256));
+            // A vote the agent opened can only pay an allowlisted payee: a fooled agent's convincing
+            // reasoning must not be enough to route money to a new address.
+            if (proposer == agent && !isPayee[to]) revert NotPayee(to);
             _spend(to, amount, ref);
         }
     }

@@ -51,7 +51,7 @@ contract InvoicesTest is CollectiveBase {
 
     function test_cancelledInvoiceCannotBePaid() public {
         bytes32 id = _invoice(INV, 10 * USDC, ali, 5000, ayse, 5000);
-        vm.prank(agent);
+        vm.prank(ayse);
         c.cancelInvoice(id);
         vm.prank(client);
         vm.expectRevert(Collective.InvoiceNotOpen.selector);

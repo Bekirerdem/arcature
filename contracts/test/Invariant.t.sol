@@ -48,7 +48,7 @@ contract Handler is Test {
         if (cap == 0) return;
         uint256 a = bound(amount, 1, u < cap ? u : cap);
         vm.prank(agent);
-        c.attribute(m[2], a, bytes32(0));
+        c.attribute(m[2], a, keccak256(abi.encode("inflow", n++)));
     }
 
     function toggleBlock(bool blocked) public {

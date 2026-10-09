@@ -9,6 +9,7 @@ import { MEMO, USDC } from "../lib/contracts";
 import { pct, short, usdc } from "../lib/format";
 import { useLang } from "../lib/i18n";
 import { useTx } from "../lib/tx";
+import { PayFromBase } from "./PayFromBase";
 import { Brand, OnArc, useUsdcBalance, Wallet } from "./Wallet";
 
 function useInvoice(chest?: Address, id?: Hex, me?: Address) {
@@ -38,6 +39,7 @@ export default function Pay() {
   const { send, busy } = useTx();
   const qc = useQueryClient();
   const [paidTx, setPaidTx] = useState<Hex | null>(null);
+  const [via, setVia] = useState<"arc" | "base">("arc");
   const { t } = useLang();
 
   const d = inv.data;
@@ -90,6 +92,13 @@ export default function Pay() {
               <p className="hint" style={{ marginTop: 12 }}>{t("pay.explain")}</p>
             </div>
             {d!.status === 1 && !paidTx && (
+              <div className="row" role="tablist" aria-label={t("pay.via")}>
+                <button role="tab" aria-selected={via === "arc"} className={`btn small ${via === "arc" ? "" : "ghost"}`} onClick={() => setVia("arc")}>{t("pay.viaArc")}</button>
+                <button role="tab" aria-selected={via === "base"} className={`btn small ${via === "base" ? "" : "ghost"}`} onClick={() => setVia("base")}>{t("pay.viaBase")}</button>
+              </div>
+            )}
+            {d!.status === 1 && !paidTx && via === "base" && <PayFromBase chest={chest} invoiceId={id} amount={d!.amount} />}
+            {d!.status === 1 && !paidTx && via === "arc" && (
               <div className="card ink">
                 <div className="label">{t("pay.label")}</div>
                 <ol className="mono" style={{ marginTop: 10, paddingLeft: 18, display: "grid", gap: 6 }}>

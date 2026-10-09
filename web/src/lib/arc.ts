@@ -1,5 +1,6 @@
 import { createPublicClient, defineChain, fallback, http } from "viem";
 import { createConfig } from "wagmi";
+import { base } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 
 export const arc = defineChain({
@@ -20,10 +21,13 @@ const transport = fallback([...relay, http("https://arc-rpc.publicnode.com", opt
 
 export const publicClient = createPublicClient({ chain: arc, transport });
 
+const baseTransport = fallback([http("https://mainnet.base.org"), http("https://base-rpc.publicnode.com")]);
+export const baseClient = createPublicClient({ chain: base, transport: baseTransport });
+
 export const wagmiConfig = createConfig({
-  chains: [arc],
+  chains: [arc, base],
   connectors: [injected()],
-  transports: { [arc.id]: transport },
+  transports: { [arc.id]: transport, [base.id]: baseTransport },
 });
 
 export const explorerTx = (hash: string) => `${arc.blockExplorers.default.url}/tx/${hash}`;

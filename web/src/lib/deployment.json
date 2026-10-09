@@ -24,5 +24,24 @@
     "implementation": "0x8af27fa90b013D2Ec01404C7BcCB882d27514061",
     "deployedAt": "2026-10-09"
   },
-  "version": "v2"
+  "version": "v2",
+  "demo": {
+    "collective": "0xD08F601db4dF673525B95E98985a8049774aae91",
+    "name": "Keyarc Studio",
+    "members": [
+      "0x39AEfbC8388da12907A21d9De888B288a9fa5794",
+      "0x4Ec4338211a803c00e592daAa62F2Ea79C86e51d"
+    ],
+    "agent": "0xBB682c02E3429d808499c1Ec5414b34113A21017",
+    "createTx": "0x39561d1baa26317a6c3c1420cc749bbb4958f14c82fa5a277576519cd7b6047f",
+    "rules": {
+      "reserveBps": 1000,
+      "reserveTarget": "5 USDC",
+      "autoAttributeCap": "5 USDC",
+      "expenseCapPerPeriod": "2 USDC",
+      "quorumBps": 6000,
+      "timelock": "1h",
+      "period": "7d"
+    }
+  }
 }

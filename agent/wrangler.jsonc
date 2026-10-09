@@ -4,9 +4,9 @@
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "triggers": { "crons": ["*/5 * * * *"] },
-  "kv_namespaces": [{ "binding": "AGENT_KV", "id": "REPLACE_WITH_KV_ID" }],
+  "kv_namespaces": [{ "binding": "AGENT_KV", "id": "0106e2622ddd4bd4b0be4b972d97e6f0" }],
   "vars": {
-    "CHESTS": "",
+    "CHESTS": "0xD08F601db4dF673525B95E98985a8049774aae91",
     "ALLOWED_ORIGINS": "https://keyarc.pages.dev,https://keyarc.app,http://localhost:5180"
   },
   "observability": { "enabled": true }

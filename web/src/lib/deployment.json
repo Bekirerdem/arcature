@@ -1,0 +1,19 @@
+{
+  "chainId": 5042,
+  "usdc": "0x3600000000000000000000000000000000000000",
+  "memo": "0x5294E9927c3306DcBaDb03fe70b92e01cCede505",
+  "factory": "0x8e4BB9741D40C4A48EF626f2195AF99D48eb0CC2",
+  "implementation": "0x8af27fa90b013D2Ec01404C7BcCB882d27514061",
+  "deployer": "0x4Ec4338211a803c00e592daAa62F2Ea79C86e51d",
+  "deployedAt": "2026-10-09",
+  "proof": {
+    "collective": "0x1Bbe31a437C1B591895cBC4f3F3A25d336Ac5203",
+    "members": ["0x4Ec4338211a803c00e592daAa62F2Ea79C86e51d", "0x39AEfbC8388da12907A21d9De888B288a9fa5794"],
+    "createTx": "0x750c70d72b9f5fee4a61afa51284b41407b6cef408776f054be000dd2f1b892c",
+    "invoiceId": "0x296db0bb48f14907df8363fc7e99b824bbd005cb911cf1601f70c16d5c2ebaac",
+    "createInvoiceTx": "0x398eed39f2a562af0fd43244639d7c35ed77d90f9606f7495825d157a082c660",
+    "approveTx": "0x679933d5a133a65cafcb7bce1df5347efbdc090d471cd4eb586c505c9035c694",
+    "payViaMemoTx": "0xbec040d84d34bbc620e1ed11206714d6b9d2d210b1acaeb5268f7e6663b104f8",
+    "distributeTx": null
+  }
+}

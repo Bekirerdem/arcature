@@ -5,3 +5,6 @@ web/dev-dist/
 .gstack/
 design/
 web/.wrangler/
+agent/node_modules/
+agent/dist/
+agent/.wrangler/

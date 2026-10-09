@@ -12,10 +12,11 @@ export const arc = defineChain({
 });
 
 // Reads go through our same-origin /rpc relay (Cloudflare edge) first: some networks get 503s without
-// CORS headers from Arc's public RPC. Direct RPC stays as a fallback, e.g. for local dev without functions.
+// CORS headers from Arc's public RPC, which also rate-limits eth_call hard. Direct providers are fallbacks
+// (and the only path in local dev, where there is no Pages Function).
 const opts = { retryCount: 4, retryDelay: 500, batch: { wait: 30 } } as const;
 const relay = typeof window !== "undefined" && window.location.hostname !== "localhost" ? [http("/rpc", opts)] : [];
-const transport = fallback([...relay, http("https://rpc.mainnet.arc.io", opts)]);
+const transport = fallback([...relay, http("https://arc-rpc.publicnode.com", opts), http("https://rpc.mainnet.arc.io", opts)]);
 
 export const publicClient = createPublicClient({ chain: arc, transport });
 

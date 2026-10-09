@@ -8,7 +8,7 @@ export const PROOF_CHEST = deployment.proof.collective as Address;
 
 export const InvoiceStatus = ["None", "Open", "Paid", "Cancelled"] as const;
 export const ProposalKind = [
-  "SetRules", "AddMember", "RemoveMember", "SetAgent", "SetPayee", "ReleaseReserve", "Attribute", "Expense",
+  "SetRules", "AddMember", "RemoveMember", "SetAgent", "SetPayee", "ReleaseReserve", "Attribute", "Expense", "SettleInvoice",
 ] as const;
 export type ProposalKindName = (typeof ProposalKind)[number];
 export const kindIndex = (k: ProposalKindName) => ProposalKind.indexOf(k);

@@ -185,6 +185,7 @@ const line = (e: CollectiveEvent, t: T): string | null => {
     case "InvoiceCreated": return t("ev.invoiceCreated", { amt: amt() });
     case "InvoicePaid": return t("ev.invoicePaid", { amt: amt(), res: usdc(a.toReserve as bigint) });
     case "InvoiceCancelled": return t("ev.invoiceCancelled");
+    case "InvoiceSettled": return t("ev.settled", { amt: amt() });
     case "Paid": return t("ev.paid", { amt: amt(), who: short(a.member as string) });
     case "PayoutDeferred": return t("ev.deferred", { amt: amt(), who: short(a.member as string) });
     case "Distributed": return t("ev.distributed", { n: String(a.period), amt: usdc(a.total as bigint) });

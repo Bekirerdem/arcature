@@ -18,5 +18,3 @@ depth = 64
 [rpc_endpoints]
 arc = "https://rpc.mainnet.arc.io"
 
-[etherscan]
-arc = { key = "blockscout", url = "https://explorer.arc.io/api", chain = 5042 }

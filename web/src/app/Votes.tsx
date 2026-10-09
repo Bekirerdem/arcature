@@ -43,6 +43,10 @@ function describe(p: Proposal, t: (k: string, v?: Record<string, string | number
         const [to, a] = decodeAbiParameters([{ type: "address" }, { type: "uint256" }], p.payload);
         return t("vote.d.expense", { amt: usdc(a), who: short(to) });
       }
+      case "SettleInvoice": {
+        const id = decodeAbiParameters([{ type: "bytes32" }], p.payload)[0];
+        return t("vote.d.settle", { id: `${id.slice(0, 10)}…` });
+      }
       case "SetRules": {
         const r = decodeAbiParameters(RULES_T, p.payload)[0];
         return t("vote.d.rules", { pct: pct(r.reserveBps), amt: usdc(r.reserveTarget), d: dur(r.periodLength) });

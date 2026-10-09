@@ -12,7 +12,7 @@ Live on **Arc mainnet** (chain 5042).
 | Collective implementation | [`0x8af27fa90b013D2Ec01404C7BcCB882d27514061`](https://explorer.arc.io/address/0x8af27fa90b013D2Ec01404C7BcCB882d27514061) |
 | Proof chest | [`0x1Bbe31a437C1B591895cBC4f3F3A25d336Ac5203`](https://explorer.arc.io/address/0x1Bbe31a437C1B591895cBC4f3F3A25d336Ac5203) |
 
-Proof flow on mainnet: a 0.10 USDC invoice paid **through Arc's Memo contract** ([tx](https://explorer.arc.io/tx/0xbec040d84d34bbc620e1ed11206714d6b9d2d210b1acaeb5268f7e6663b104f8)) — 0.01 to reserve, 0.09 to the period pot, credited 70/30 to the two contributors. All hashes in [`deployments/arc-mainnet.json`](deployments/arc-mainnet.json).
+Proof flow on mainnet: a 0.10 USDC invoice paid **through Arc's Memo contract** ([tx](https://explorer.arc.io/tx/0xbec040d84d34bbc620e1ed11206714d6b9d2d210b1acaeb5268f7e6663b104f8)) — 0.01 to reserve, 0.09 to the period pot, credited 70/30 to the two contributors, then paid out on chain at period end ([distribute tx](https://explorer.arc.io/tx/0xe6b7fe088db8af9b06c42567b4d55b0336e9054ac18f22c38ed1e5b9c7e84c1c)): 0.063 and 0.027 USDC to the members' wallets. All hashes in [`deployments/arc-mainnet.json`](deployments/arc-mainnet.json).
 
 ## The problem
 

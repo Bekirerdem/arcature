@@ -2,8 +2,9 @@ import { parseEventLogs, type Address, type Log } from "viem";
 import { publicClient } from "./arc";
 import { collectiveAbi } from "./abi";
 
-// Arc's public RPC rejects eth_getLogs ranges above ~5k blocks ("requested range too large").
-const CHUNK = 4_900n;
+// Providers cap eth_getLogs ranges differently (Arc ~5k, thirdweb 1k, dRPC free tier lower still), so stay
+// under the smallest cap; the local cache means only new blocks are scanned on later visits.
+const CHUNK = 900n;
 
 type Cached = { from: string; to: string; logs: SerializedLog[] };
 type SerializedLog = { blockNumber: string; transactionHash: string; logIndex: number; data: `0x${string}`; topics: `0x${string}`[] };

@@ -1,5 +1,6 @@
 import { getAddress, isAddress, recoverMessageAddress, type Address, type Hex } from "viem";
 import { agentWallet, collectiveAbi, isHex32, publicClient, readChest } from "./chain";
+import { fastFeeBps, queueBurn, relayBurns, SOURCE_DOMAINS } from "./cctp";
 import { runCollections, setInvoiceNote } from "./collections";
 import type { Env } from "./env";
 import { ClaudeJudge, NoJudge, type Judge } from "./llm";
@@ -14,6 +15,7 @@ const chestsOf = (env: Env): Address[] => env.CHESTS.split(",").map((c) => c.tri
 async function cycle(env: Env, chest: Address, opts: { forceNote?: boolean } = {}) {
   const judge = judgeFor(env);
   const steps: [string, () => Promise<void>][] = [
+    ["relay", () => relayBurns(env)],
     ["collections", () => runCollections(env, chest, judge)],
     ["treasury", () => runTreasuryNote(env, chest, judge, opts.forceNote)],
     ["payout", () => maybeDistribute(env, chest)],
@@ -81,6 +83,11 @@ async function handleFetch(req: Request, env: Env): Promise<Response> {
   const h = cors(env, req);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { ...h, "access-control-allow-methods": "GET, POST, OPTIONS" } });
   const url = new URL(req.url);
+  if (req.method === "GET" && url.pathname === "/cctp/fee") {
+    const domain = Number(url.searchParams.get("source") ?? "6");
+    if (!(domain in SOURCE_DOMAINS)) return json({ error: "unsupported source chain" }, 400, h);
+    return json({ source: domain, feeBps: await fastFeeBps(domain) }, 200, h);
+  }
   const chestParam = url.searchParams.get("chest") ?? "";
   if (!isAddress(chestParam)) return json({ error: "chest address required" }, 400, h);
   const chest = getAddress(chestParam);
@@ -92,6 +99,13 @@ async function handleFetch(req: Request, env: Env): Promise<Response> {
   if (req.method === "GET" && url.pathname === "/vendors") return json({ vendors: await getVendors(env, chest) }, 200, h);
   if (!managed) return json({ error: "this agent does not operate that chest" }, 404, h);
 
+  if (req.method === "POST" && url.pathname === "/cctp") {
+    const body = (await req.json()) as { burnTx?: string; source?: number };
+    const source = Number(body.source ?? 6);
+    if (!isHex32(body.burnTx) || !(source in SOURCE_DOMAINS)) return json({ error: "burnTx and a supported source required" }, 400, h);
+    await queueBurn(env, { sourceDomain: source, burnTx: body.burnTx, chest });
+    return json({ ok: true }, 200, h);
+  }
   if (req.method === "POST" && url.pathname === "/invoice-note") {
     const body = (await req.json()) as { id?: string; note?: string };
     if (!isHex32(body.id) || typeof body.note !== "string") return json({ error: "id and note required" }, 400, h);

@@ -6,6 +6,15 @@ import { saveDecision, seal, type Check } from "./log";
 
 const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
 const CHUNK = 900n; // smallest eth_getLogs range the relay providers accept
+/** Arc emits native USDC movements (e.g. CCTP mints) from a system address as well as from the ERC-20 interface. */
+const SYSTEM_EMITTER: Address = "0xfffffffffffffffffffffffffffffffffffffffe";
+/** A fast CCTP transfer arrives slightly above the invoice when the payer covered the fee; the excess stays unlabelled. */
+const TOLERANCE_BPS = 50n;
+
+/** True when an inflow pays this invoice: at least the amount, at most 0.5% more. */
+export function pays(inflow: bigint, invoice: bigint): boolean {
+  return inflow >= invoice && inflow <= invoice + (invoice * TOLERANCE_BPS) / 10_000n;
+}
 
 /** `seen` = how many matching open invoices existed when it was last held; re-judged only when that changes. */
 export type Inflow = { tx: Hex; from: Address; amount: bigint; block: bigint; seen?: number };
@@ -34,13 +43,18 @@ export async function findInflows(env: Env, chest: Address): Promise<Inflow[]> {
   while (from <= head) {
     const to = from + CHUNK > head ? head : from + CHUNK;
     const [transfers, events] = await Promise.all([
-      publicClient.getLogs({ address: USDC, event: transferEvent, args: { to: chest }, fromBlock: from, toBlock: to }),
+      publicClient.getLogs({ address: [USDC, SYSTEM_EMITTER], event: transferEvent, args: { to: chest }, fromBlock: from, toBlock: to }),
       publicClient.getContractEvents({ address: chest, abi: collectiveAbi, fromBlock: from, toBlock: to }),
     ]);
     const invoiceTxs = new Set(events.filter((e) => e.eventName === "InvoicePaid").map((p) => p.transactionHash));
     tally(stats, events);
+    const seen = new Set<string>();
     for (const t of transfers) {
       if (invoiceTxs.has(t.transactionHash) || t.args.from?.toLowerCase() === chest.toLowerCase()) continue;
+      // the same movement can appear from both emitters (ERC-20 and system); count it once
+      const k = `${t.transactionHash}:${t.args.from}:${t.args.value}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
       found.push({ tx: t.transactionHash, from: t.args.from!, amount: t.args.value!, block: t.blockNumber });
     }
     from = to + 1n;
@@ -99,7 +113,7 @@ export async function runCollections(env: Env, chest: Address, judge: Judge) {
     const used = await publicClient.readContract({ address: chest, abi: collectiveAbi, functionName: "usedRef", args: [inflow.tx] });
     if (used) continue;
 
-    const exact = invoices.filter((i) => i.amount === inflow.amount && i.block <= inflow.block);
+    const exact = invoices.filter((i) => pays(inflow.amount, i.amount) && i.block <= inflow.block);
     if (inflow.seen !== undefined && inflow.seen === exact.length) {
       stillPending.push(inflow); // nothing new to judge since it was held
       continue;
@@ -114,11 +128,11 @@ export async function runCollections(env: Env, chest: Address, judge: Judge) {
       : null;
 
     const checks: Check[] = [
-      { name: "matching invoices", ok: exact.length === 1, detail: `${exact.length} open invoice(s) for exactly ${usdc(inflow.amount)} USDC` },
+      { name: "matching invoices", ok: exact.length === 1, detail: `${exact.length} open invoice(s) paid by ${usdc(inflow.amount)} USDC` },
       { name: "model agrees", ok: !!judgement && judgement.decision === "settle" && exact.length === 1 && judgement.invoiceId.toLowerCase() === exact[0].id.toLowerCase(), detail: judgement ? `${judgement.decision} (${Math.round(judgement.confidence * 100)}%)` : "no candidate to judge" },
       { name: "confidence", ok: (judgement?.confidence ?? 0) >= 0.8, detail: `${Math.round((judgement?.confidence ?? 0) * 100)}% (needs 80%)` },
-      { name: "within agent limit", ok: inflow.amount <= capLeft, detail: `${usdc(capLeft)} USDC left this period` },
-      { name: "money is in the chest", ok: inflow.amount <= state.unattributed, detail: `${usdc(state.unattributed)} USDC unlabelled` },
+      { name: "within agent limit", ok: exact.length === 1 && exact[0].amount <= capLeft, detail: `${usdc(capLeft)} USDC left this period` },
+      { name: "money is in the chest", ok: exact.length === 1 && exact[0].amount <= state.unattributed, detail: `${usdc(state.unattributed)} USDC unlabelled` },
     ];
     const agree = checks[0].ok && checks[1].ok && checks[2].ok && checks[4].ok;
     const facts = { amount: `${usdc(inflow.amount)} USDC`, inflowTx: inflow.tx, from: inflow.from, candidates: String(exact.length) };
@@ -129,7 +143,7 @@ export async function runCollections(env: Env, chest: Address, judge: Judge) {
       const tx = await wallet.writeContract({ address: chest, abi: collectiveAbi, functionName: "settleInvoice", args: [exact[0].id, inflow.tx], account });
       await publicClient.waitForTransactionReceipt({ hash: tx });
       await saveDecision(env, { ...d, tx });
-      state.attributedThisPeriod += inflow.amount;
+      state.attributedThisPeriod += exact[0].amount;
     } else if (agree) {
       // Clear match, but above the agent's limit: the members decide.
       const d = seal({ chest, at: Date.now(), kind: "inflow", title: `Asked members to match ${usdc(inflow.amount)} USDC`, facts, checks, model, outcome: "vote" });

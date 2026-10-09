@@ -8,6 +8,7 @@ import { LangProvider } from "./lib/i18n";
 import { ToastProvider } from "./lib/tx";
 import "./styles/app.css";
 import "./app/strings";
+import "./app/strings-agent";
 
 const Landing = lazy(() => import("./routes/Landing"));
 const Home = lazy(() => import("./app/Home"));

@@ -9,6 +9,7 @@ import { pct, short, usdc } from "../lib/format";
 import { useDuration, useLang } from "../lib/i18n";
 import type { CollectiveEvent } from "../lib/logs";
 import { useTx } from "../lib/tx";
+import { AgentPanel } from "./Agent";
 import { Invoices } from "./Invoices";
 import { invoicesFrom, useChest, useChestEvents, type Chest as ChestT } from "./useChest";
 import { Votes } from "./Votes";
@@ -85,6 +86,7 @@ export default function Chest() {
         </div>
         {c ? <Period chest={c} isMember={isMember} onChange={refresh} /> : <div className="card"><div className="skeleton" style={{ height: 160 }} /></div>}
         {c && <Invoices chest={c} invoices={invoices} isMember={isMember} onChange={refresh} />}
+        {c && <AgentPanel chest={c} isMember={isMember} onChange={refresh} />}
       </main>
 
       <aside className="side">

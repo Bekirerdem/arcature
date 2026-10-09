@@ -1,4 +1,5 @@
 import { pad, parseAbi, zeroHash, type Address, type Hex } from "viem";
+import { AGENT_URL as AGENT_API } from "./agent";
 
 /** CCTP v2 on Base → Arc. Same contract addresses on every CCTP v2 EVM chain. */
 export const BASE_CHAIN_ID = 8453;
@@ -8,8 +9,6 @@ export const BASE_USDC: Address = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 export const TOKEN_MESSENGER: Address = "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d";
 /** Fast transfer: Circle attests after soft finality (seconds), for a small fee. */
 export const FAST_FINALITY = 1000;
-
-export const AGENT_API: string = import.meta.env.VITE_AGENT_URL ?? "https://keyarc-agent.l3ekirerdem.workers.dev";
 
 export const tokenMessengerAbi = parseAbi([
   "function depositForBurn(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller, uint256 maxFee, uint32 minFinalityThreshold)",

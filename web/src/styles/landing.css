@@ -289,3 +289,23 @@ html.has-cursor .landing,html.has-cursor .landing *{cursor:none!important}
 /* host reset: neutralise app-level #root/html styles while the landing is mounted */
 html:has(body.landing-body){background:#7a4a22;color-scheme:light}
 body.landing-body #root{width:auto;max-width:none;margin:0;text-align:left;border:0;display:block;min-height:0;padding:0}
+
+/* ---------- language switch + always-visible app entry ---------- */
+.landing .navcard{align-items:center}
+.landing .navcard .nav-lang{box-shadow:none;background:rgba(255,255,255,.08);margin-left:4px}
+.landing .navcard .nav-lang button{min-height:32px}
+/* Turkish runs ~20% longer: keep the big lines on the board */
+.landing:lang(tr) h1{font-size:clamp(50px,6.4vw,108px)}
+.landing:lang(tr) .big-say{font-size:clamp(38px,4.6vw,76px)}
+.landing:lang(tr) .held{font-size:22px}
+@media (max-width:760px){
+  .landing .navcard{gap:2px;padding:4px}
+  .landing .navcard a.cta{padding:8px 10px;font-size:11px}
+  .landing .navcard .nav-lang button{padding:5px 7px}
+  .landing:lang(tr) h1{font-size:44px}
+  .landing:lang(tr) .big-say{font-size:36px}
+}
+
+/* off-board cards wait outside the viewport before they fly in: clip them without making a scroll container */
+.landing{overflow-x:clip}
+.landing:lang(tr) .ptape .now::after{content:"bugün"}

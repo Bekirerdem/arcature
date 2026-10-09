@@ -103,9 +103,7 @@ contract GovernanceTest is CollectiveBase {
     }
 
     function test_removedMemberStillPaidForEarnedCredit() public {
-        _invoice(keccak256("job"), 1000 * USDC, mehmet, 5000, ali, 5000);
-        vm.prank(client);
-        c.payInvoice(keccak256("job"));
+        _pay(_invoice(keccak256("job"), 1000 * USDC, mehmet, 5000, ali, 5000));
         _pass(Collective.Kind.RemoveMember, abi.encode(mehmet));
         vm.warp(block.timestamp + 30 days);
         vm.prank(ali);
@@ -114,12 +112,14 @@ contract GovernanceTest is CollectiveBase {
     }
 
     function test_releaseReserveOnlyByVote() public {
-        _invoice(keccak256("job"), 1000 * USDC, ali, 5000, ayse, 5000);
-        vm.prank(client);
-        c.payInvoice(keccak256("job"));
-        _pass(Collective.Kind.ReleaseReserve, abi.encode(100 * USDC));
+        _pay(_invoice(keccak256("job"), 1000 * USDC, ali, 5000, ayse, 5000));
+        address[] memory to = new address[](1);
+        uint256[] memory amt = new uint256[](1);
+        to[0] = ayse; amt[0] = 100 * USDC;
+        _pass(Collective.Kind.ReleaseReserve, abi.encode(to, amt));
         assertEq(c.reserve(), 0);
-        assertEq(c.pool(), 1000 * USDC);
+        assertEq(c.pool(), 900 * USDC);
+        assertEq(usdc.balanceOf(ayse), 100 * USDC);
     }
 
     function test_strangerCannotPropose() public {

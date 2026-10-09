@@ -41,12 +41,23 @@ abstract contract CollectiveBase is Test {
         usdc.approve(address(c), type(uint256).max);
     }
 
-    function _invoice(bytes32 id, uint256 amount, address a, uint16 sa, address b, uint16 sb) internal {
+    /// @dev ali creates an invoice from a salt; returns the contract-derived id.
+    function _invoice(bytes32 salt, uint256 amount, address a, uint16 sa, address b, uint16 sb)
+        internal
+        returns (bytes32 id)
+    {
         address[] memory who = new address[](2);
         uint16[] memory sh = new uint16[](2);
         who[0] = a; who[1] = b; sh[0] = sa; sh[1] = sb;
         vm.prank(ali);
-        c.createInvoice(id, amount, address(0), who, sh);
+        id = c.createInvoice(salt, amount, address(0), who, sh);
+    }
+
+    /// @dev client pays an invoice at its stated amount.
+    function _pay(bytes32 id) internal {
+        (uint256 amount,,,,,) = c.invoice(id);
+        vm.prank(client);
+        c.payInvoice(id, amount);
     }
 
     function _accounted() internal view returns (uint256) {

@@ -9,9 +9,7 @@ contract ExpensesTest is CollectiveBase {
 
     function setUp() public override {
         super.setUp();
-        _invoice(keccak256("job"), 1000 * USDC, ali, 5000, ayse, 5000);
-        vm.prank(client);
-        c.payInvoice(keccak256("job")); // reserve 100, pool 900
+        _pay(_invoice(keccak256("job"), 1000 * USDC, ali, 5000, ayse, 5000)); // reserve 100, pool 900
         _allowPayee(hosting);
     }
 
@@ -67,9 +65,7 @@ contract ExpensesTest is CollectiveBase {
         vm.prank(ali);
         c.distribute();
         // pool was distributed; fund again
-        _invoice(keccak256("job2"), 1000 * USDC, ali, 5000, ayse, 5000);
-        vm.prank(client);
-        c.payInvoice(keccak256("job2"));
+        _pay(_invoice(keccak256("job2"), 1000 * USDC, ali, 5000, ayse, 5000));
         vm.prank(agent);
         c.payExpense(hosting, 200 * USDC, bytes32(0));
         assertEq(c.expensesThisPeriod(), 200 * USDC);

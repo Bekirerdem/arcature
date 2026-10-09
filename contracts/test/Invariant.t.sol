@@ -29,11 +29,10 @@ contract Handler is Test {
         address[] memory who = new address[](2);
         uint16[] memory sh = new uint16[](2);
         who[0] = m[0]; who[1] = m[1]; sh[0] = shareA; sh[1] = 10_000 - shareA;
-        bytes32 id = keccak256(abi.encode(n++));
         vm.prank(m[0]);
-        c.createInvoice(id, amount, address(0), who, sh);
+        bytes32 id = c.createInvoice(keccak256(abi.encode(n++)), amount, address(0), who, sh);
         vm.prank(client);
-        c.payInvoice(id);
+        c.payInvoice(id, amount);
     }
 
     function sendUnattributed(uint96 amount) public {
@@ -45,7 +44,8 @@ contract Handler is Test {
     function attribute(uint96 amount) public {
         uint256 u = c.unattributed();
         if (u == 0) return;
-        uint256 cap = c.rules().autoAttributeCap;
+        uint256 cap = c.rules().autoAttributeCap - c.attributedThisPeriod();
+        if (cap == 0) return;
         uint256 a = bound(amount, 1, u < cap ? u : cap);
         vm.prank(agent);
         c.attribute(m[2], a, bytes32(0));

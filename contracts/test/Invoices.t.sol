@@ -9,9 +9,7 @@ contract InvoicesTest is CollectiveBase {
     bytes32 constant INV = keccak256("site-v2/milestone-2");
 
     function test_payInvoice_takesReserveAndCreditsByShare() public {
-        _invoice(INV, 2000 * USDC, ali, 6000, ayse, 4000);
-        vm.prank(client);
-        c.payInvoice(INV);
+        _pay(_invoice(INV, 2000 * USDC, ali, 6000, ayse, 4000));
 
         assertEq(c.reserve(), 200 * USDC);          // 10% of 2000
         assertEq(c.pool(), 1800 * USDC);
@@ -22,19 +20,17 @@ contract InvoicesTest is CollectiveBase {
     }
 
     function test_reserveStopsAtTarget() public {
-        _invoice(INV, 10_000 * USDC, ali, 5000, ayse, 5000);
-        vm.prank(client);
-        c.payInvoice(INV);
+        _pay(_invoice(INV, 10_000 * USDC, ali, 5000, ayse, 5000));
         assertEq(c.reserve(), 500 * USDC);          // capped by reserveTarget
         assertEq(c.pool(), 9500 * USDC);
     }
 
     function test_cannotPayTwice() public {
-        _invoice(INV, 10 * USDC, ali, 5000, ayse, 5000);
+        bytes32 id = _invoice(INV, 10 * USDC, ali, 5000, ayse, 5000);
         vm.startPrank(client);
-        c.payInvoice(INV);
+        c.payInvoice(id, 10 * USDC);
         vm.expectRevert(Collective.InvoiceNotOpen.selector);
-        c.payInvoice(INV);
+        c.payInvoice(id, 10 * USDC);
         vm.stopPrank();
     }
 
@@ -43,23 +39,23 @@ contract InvoicesTest is CollectiveBase {
         uint16[] memory sh = new uint16[](1);
         who[0] = ali; sh[0] = 10_000;
         vm.prank(ali);
-        c.createInvoice(INV, 10 * USDC, client, who, sh);
+        bytes32 id = c.createInvoice(INV, 10 * USDC, client, who, sh);
         address stranger = makeAddr("stranger");
         usdc.mint(stranger, 10 * USDC);
         vm.startPrank(stranger);
         usdc.approve(address(c), type(uint256).max);
         vm.expectRevert(Collective.WrongPayer.selector);
-        c.payInvoice(INV);
+        c.payInvoice(id, 10 * USDC);
         vm.stopPrank();
     }
 
     function test_cancelledInvoiceCannotBePaid() public {
-        _invoice(INV, 10 * USDC, ali, 5000, ayse, 5000);
+        bytes32 id = _invoice(INV, 10 * USDC, ali, 5000, ayse, 5000);
         vm.prank(agent);
-        c.cancelInvoice(INV);
+        c.cancelInvoice(id);
         vm.prank(client);
         vm.expectRevert(Collective.InvoiceNotOpen.selector);
-        c.payInvoice(INV);
+        c.payInvoice(id, 10 * USDC);
     }
 
     function test_sharesMustSumTo10000() public {

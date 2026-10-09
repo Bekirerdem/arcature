@@ -1431,19 +1431,20 @@ Expected: factory + implementation addresses printed, both verified on explorer.
 
 ```bash
 F=<factory>; D=<deployer>; K="--keystore ~/.orta/keystore/<FILE> --password-file ~/.orta/pw --rpc-url arc"
-# 1. create a collective: members = deployer + Bekir's MetaMask, rules: 10% reserve to 1 USDC, period 1 hour, timelock 60s
-cast send $F "create(string,address[],(uint16,uint256,uint256,uint256,uint16,uint32,uint32),address)" "Proof Guild" "[$D,0x39AEfbC8388da12907A21d9De888B288a9fa5794]" "(1000,1000000,1000000,1000000,5001,60,3600)" $D $K
+# 1. create a collective: members = deployer + Bekir's MetaMask, rules: 10% reserve to 1 USDC, period 1 hour, timelock 1 hour (floor), quorum 2-of-2
+cast send $F "create(string,address[],(uint16,uint256,uint256,uint256,uint16,uint32,uint32),address)" "Proof Guild" "[$D,0x39AEfbC8388da12907A21d9De888B288a9fa5794]" "(1000,1000000,1000000,1000000,5001,3600,3600)" $D $K
 C=$(cast call $F "collectiveAt(uint256)(address)" 0 --rpc-url arc)
 # 2. invoice 0.10 USDC, 70/30
-ID=$(cast keccak "proof-invoice-1")
-cast send $C "createInvoice(bytes32,uint256,address,address[],uint16[])" $ID 100000 0x0000000000000000000000000000000000000000 "[$D,0x39AEfbC8388da12907A21d9De888B288a9fa5794]" "[7000,3000]" $K
+SALT=$(cast keccak "proof-invoice-1")
+cast send $C "createInvoice(bytes32,uint256,address,address[],uint16[])" $SALT 100000 0x0000000000000000000000000000000000000000 "[$D,0x39AEfbC8388da12907A21d9De888B288a9fa5794]" "[7000,3000]" $K
 # 3. approve + pay THROUGH MEMO (checks Arc Memo preserves msg.sender for transferFrom)
 cast send 0x3600000000000000000000000000000000000000 "approve(address,uint256)" $C 100000 $K
-cast send 0x5294E9927c3306DcBaDb03fe70b92e01cCede505 "memo(address,bytes,bytes32,bytes)" $C $(cast calldata "payInvoice(bytes32)" $ID) $ID 0x $K
+ID=$(cast call $C "invoiceId(address,bytes32)(bytes32)" $D $SALT --rpc-url arc)
+cast send 0x5294E9927c3306DcBaDb03fe70b92e01cCede505 "memo(address,bytes,bytes32,bytes)" $C $(cast calldata "payInvoice(bytes32,uint256)" $ID 100000) $ID 0x $K
 cast call $C "pool()(uint256)" --rpc-url arc      # expect 90000
 cast call $C "reserve()(uint256)" --rpc-url arc   # expect 10000
 ```
-Expected: `InvoicePaid` and Arc `Memo` events in the same tx on explorer. If the Memo call reverts, fall back to `cast send $C "payInvoice(bytes32)" $ID` and record the finding in `contracts/script/README.md`.
+Expected: `InvoicePaid` and Arc `Memo` events in the same tx on explorer. If the Memo call reverts, fall back to `cast send $C "payInvoice(bytes32,uint256)" $ID 100000` and record the finding in `contracts/script/README.md`.
 
 - [ ] **Step 5: Real distribution after the period**
 
@@ -1461,6 +1462,10 @@ git add contracts/script deployments && git commit -m "feat(deploy): collective 
 (Remote created when the name is final; push then.)
 
 ---
+
+## Post-review changes (2026-10-09)
+
+Security review I1-I5 fixed before deploy: proposals snapshot votesNeeded/executableAt/expiresAt + governance epoch, cancel/unvote; quorum > 50%, timelock >= 1h, period 1h..366d, min 2 votes with 2+ members; agent attribution cap per period; invoice id = keccak(collective, creator, salt) and payInvoice(id, expectedAmount); ReleaseReserve pays named recipients. Event Initialized renamed CollectiveInitialized; InvoiceCreated/Proposed carry full data.
 
 ## Self-review notes
 

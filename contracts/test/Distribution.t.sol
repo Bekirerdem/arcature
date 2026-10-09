@@ -7,12 +7,8 @@ import {Collective} from "../src/Collective.sol";
 contract DistributionTest is CollectiveBase {
     function setUp() public override {
         super.setUp();
-        _invoice(keccak256("a"), 2000 * USDC, ali, 6000, ayse, 4000);   // ali 1200, ayse 800 credit
-        vm.prank(client);
-        c.payInvoice(keccak256("a"));
-        _invoice(keccak256("b"), 1000 * USDC, mehmet, 10_000, ali, 0);   // mehmet 1000 credit
-        vm.prank(client);
-        c.payInvoice(keccak256("b"));
+        _pay(_invoice(keccak256("a"), 2000 * USDC, ali, 6000, ayse, 4000));  // ali 1200, ayse 800 credit
+        _pay(_invoice(keccak256("b"), 1000 * USDC, mehmet, 10_000, ali, 0)); // mehmet 1000 credit
         // reserve 300, pool 2700, totalCredit 3000
     }
 
@@ -56,9 +52,7 @@ contract DistributionTest is CollectiveBase {
         vm.warp(block.timestamp + 30 days);
         vm.prank(ali);
         c.distribute();
-        _invoice(keccak256("c"), 10, ali, 3334, ayse, 6666);
-        vm.prank(client);
-        c.payInvoice(keccak256("c"));
+        _pay(_invoice(keccak256("c"), 10, ali, 3334, ayse, 6666));
         vm.warp(block.timestamp + 30 days);
         vm.prank(ali);
         c.distribute();

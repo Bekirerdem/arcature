@@ -17,12 +17,18 @@ contract Collective is Initializable, ReentrancyGuard {
     uint256 public constant MAX_MEMBERS = 50;
     uint256 public constant MAX_CONTRIBUTORS = 20;
     uint16 internal constant BPS = 10_000;
+    uint32 public constant MIN_TIMELOCK = 1 hours;
+    uint32 public constant MAX_TIMELOCK = 30 days;
+    uint32 public constant MIN_PERIOD = 1 hours;
+    uint32 public constant MAX_PERIOD = 366 days;
+    uint64 public constant PROPOSAL_TTL = 7 days;
 
     enum InvoiceStatus { None, Open, Paid, Cancelled }
     enum Kind { SetRules, AddMember, RemoveMember, SetAgent, SetPayee, ReleaseReserve, Attribute, Expense }
 
     struct Invoice {
         uint256 amount;
+        address creator;
         address payer;
         InvoiceStatus status;
         address[] contributors;
@@ -34,9 +40,13 @@ contract Collective is Initializable, ReentrancyGuard {
         bytes payload;
         bytes32 ref;
         address proposer;
-        uint64 createdAt;
+        uint64 executableAt;
+        uint64 expiresAt;
+        uint64 epoch;
         uint32 votes;
+        uint32 votesNeeded;
         bool executed;
+        bool cancelled;
     }
 
     IERC20 public usdc;
@@ -55,6 +65,8 @@ contract Collective is Initializable, ReentrancyGuard {
     uint256 public period;
     uint64 public periodStart;
     uint256 public expensesThisPeriod;
+    uint256 public attributedThisPeriod;
+    uint64 public governanceEpoch;
     mapping(uint256 => mapping(address => uint256)) public credit;
     mapping(uint256 => uint256) public totalCredit;
     mapping(uint256 => address[]) internal _creditors;
@@ -63,8 +75,10 @@ contract Collective is Initializable, ReentrancyGuard {
     Proposal[] internal _proposals;
     mapping(uint256 => mapping(address => bool)) public hasVoted;
 
-    event Initialized(string name, address[] members, address agent);
-    event InvoiceCreated(bytes32 indexed id, uint256 amount, address payer);
+    event CollectiveInitialized(string name, address[] members, address agent);
+    event InvoiceCreated(
+        bytes32 indexed id, address indexed creator, uint256 amount, address payer, address[] contributors, uint16[] sharesBps
+    );
     event InvoicePaid(bytes32 indexed id, address indexed payer, uint256 amount, uint256 toReserve);
     event InvoiceCancelled(bytes32 indexed id);
     event Credited(uint256 indexed period, address indexed member, uint256 amount);
@@ -74,8 +88,13 @@ contract Collective is Initializable, ReentrancyGuard {
     event PayoutDeferred(uint256 indexed period, address indexed member, uint256 amount);
     event Claimed(address indexed member, address to, uint256 amount);
     event Distributed(uint256 indexed period, uint256 total, uint256 carried);
-    event Proposed(uint256 indexed id, Kind kind, address indexed proposer, bytes32 ref);
+    event Proposed(
+        uint256 indexed id, Kind kind, address indexed proposer, bytes32 ref, bytes payload, uint64 executableAt, uint32 votesNeeded
+    );
     event Voted(uint256 indexed id, address indexed member);
+    event Unvoted(uint256 indexed id, address indexed member);
+    event Cancelled(uint256 indexed id);
+    event ReserveReleased(address indexed to, uint256 amount);
     event Executed(uint256 indexed id, Kind kind);
 
     error NotAMember(address account);
@@ -85,6 +104,12 @@ contract Collective is Initializable, ReentrancyGuard {
     error BadMembers();
     error BadShares();
     error InvoiceExists();
+    error AmountMismatch();
+    error ProposalExpired();
+    error ProposalStale();
+    error ProposalCancelled();
+    error NotProposer();
+    error NotVoted();
     error InvoiceNotOpen();
     error WrongPayer();
     error ZeroAmount();
@@ -140,18 +165,21 @@ contract Collective is Initializable, ReentrancyGuard {
             _members.push(m);
         }
         periodStart = uint64(block.timestamp);
-        emit Initialized(name_, members_, agent_);
+        emit CollectiveInitialized(name_, members_, agent_);
     }
 
     // ───────────────────────────── income ─────────────────────────────
 
+    /// @notice Create an invoice. The id is derived from (this, creator, salt) so nobody can squat
+    ///         an id someone else is about to use.
     function createInvoice(
-        bytes32 id,
+        bytes32 salt,
         uint256 amount,
         address payer,
         address[] calldata contributors,
         uint16[] calldata sharesBps
-    ) external onlyMemberOrAgent {
+    ) external onlyMemberOrAgent returns (bytes32 id) {
+        id = invoiceId(msg.sender, salt);
         if (_invoices[id].status != InvoiceStatus.None) revert InvoiceExists();
         if (amount == 0) revert ZeroAmount();
         uint256 n = contributors.length;
@@ -164,11 +192,12 @@ contract Collective is Initializable, ReentrancyGuard {
         if (sum != BPS) revert BadShares();
         Invoice storage inv = _invoices[id];
         inv.amount = amount;
+        inv.creator = msg.sender;
         inv.payer = payer;
         inv.status = InvoiceStatus.Open;
         inv.contributors = contributors;
         inv.sharesBps = sharesBps;
-        emit InvoiceCreated(id, amount, payer);
+        emit InvoiceCreated(id, msg.sender, amount, payer, contributors, sharesBps);
     }
 
     function cancelInvoice(bytes32 id) external onlyMemberOrAgent {
@@ -180,9 +209,10 @@ contract Collective is Initializable, ReentrancyGuard {
 
     /// @notice Pay an open invoice. Works when called directly or through Arc's Memo contract,
     ///         which preserves the paying EOA as msg.sender.
-    function payInvoice(bytes32 id) external nonReentrant {
+    function payInvoice(bytes32 id, uint256 expectedAmount) external nonReentrant {
         Invoice storage inv = _invoices[id];
         if (inv.status != InvoiceStatus.Open) revert InvoiceNotOpen();
+        if (inv.amount != expectedAmount) revert AmountMismatch();
         if (inv.payer != address(0) && inv.payer != msg.sender) revert WrongPayer();
         inv.status = InvoiceStatus.Paid;
         uint256 amount = inv.amount;
@@ -198,7 +228,8 @@ contract Collective is Initializable, ReentrancyGuard {
 
     /// @notice Agent ties unattributed inflow (x402 sale, plain transfer) to a member, within its cap.
     function attribute(address member, uint256 amount, bytes32 ref) external onlyAgent nonReentrant {
-        if (amount > _rules.autoAttributeCap) revert AboveCap();
+        if (attributedThisPeriod + amount > _rules.autoAttributeCap) revert AboveCap();
+        attributedThisPeriod += amount;
         _attribute(member, amount, ref);
     }
 
@@ -234,6 +265,7 @@ contract Collective is Initializable, ReentrancyGuard {
         period = p + 1;
         periodStart = uint64(block.timestamp);
         expensesThisPeriod = 0;
+        attributedThisPeriod = 0;
         emit Distributed(p, paid, pool);
     }
 
@@ -256,12 +288,34 @@ contract Collective is Initializable, ReentrancyGuard {
             if (kind != Kind.Attribute && kind != Kind.Expense) revert AgentCannotPropose(kind);
         }
         id = _proposals.length;
+        uint64 executableAt = uint64(block.timestamp) + _rules.timelock;
+        uint32 needed = _votesNeeded();
         _proposals.push(Proposal({
             kind: kind, payload: payload, ref: ref, proposer: msg.sender,
-            createdAt: uint64(block.timestamp), votes: 0, executed: false
+            executableAt: executableAt, expiresAt: executableAt + PROPOSAL_TTL, epoch: governanceEpoch,
+            votes: 0, votesNeeded: needed, executed: false, cancelled: false
         }));
-        emit Proposed(id, kind, msg.sender, ref);
+        emit Proposed(id, kind, msg.sender, ref, payload, executableAt, needed);
         if (member) _vote(id);
+    }
+
+    function unvote(uint256 id) external onlyMember {
+        if (id >= _proposals.length) revert UnknownProposal();
+        Proposal storage pr = _proposals[id];
+        if (pr.executed) revert AlreadyExecuted();
+        if (!hasVoted[id][msg.sender]) revert NotVoted();
+        hasVoted[id][msg.sender] = false;
+        pr.votes -= 1;
+        emit Unvoted(id, msg.sender);
+    }
+
+    function cancel(uint256 id) external {
+        if (id >= _proposals.length) revert UnknownProposal();
+        Proposal storage pr = _proposals[id];
+        if (pr.proposer != msg.sender) revert NotProposer();
+        if (pr.executed) revert AlreadyExecuted();
+        pr.cancelled = true;
+        emit Cancelled(id);
     }
 
     function vote(uint256 id) external onlyMember {
@@ -273,8 +327,11 @@ contract Collective is Initializable, ReentrancyGuard {
         if (id >= _proposals.length) revert UnknownProposal();
         Proposal storage pr = _proposals[id];
         if (pr.executed) revert AlreadyExecuted();
-        if (block.timestamp < uint256(pr.createdAt) + _rules.timelock) revert TimelockActive();
-        if (uint256(pr.votes) * BPS < uint256(_rules.quorumBps) * _members.length) revert NoQuorum();
+        if (pr.cancelled) revert ProposalCancelled();
+        if (pr.epoch != governanceEpoch) revert ProposalStale();
+        if (block.timestamp < pr.executableAt) revert TimelockActive();
+        if (block.timestamp > pr.expiresAt) revert ProposalExpired();
+        if (pr.votes < pr.votesNeeded) revert NoQuorum();
         pr.executed = true;
         _apply(pr.kind, pr.payload, pr.ref);
         emit Executed(id, pr.kind);
@@ -289,10 +346,19 @@ contract Collective is Initializable, ReentrancyGuard {
     function proposal(uint256 id) external view returns (Proposal memory) { return _proposals[id]; }
 
     function invoice(bytes32 id) external view returns (
-        uint256 amount, address payer, InvoiceStatus status, address[] memory contributors, uint16[] memory sharesBps
+        uint256 amount,
+        address creator,
+        address payer,
+        InvoiceStatus status,
+        address[] memory contributors,
+        uint16[] memory sharesBps
     ) {
         Invoice storage inv = _invoices[id];
-        return (inv.amount, inv.payer, inv.status, inv.contributors, inv.sharesBps);
+        return (inv.amount, inv.creator, inv.payer, inv.status, inv.contributors, inv.sharesBps);
+    }
+
+    function invoiceId(address creator, bytes32 salt) public view returns (bytes32) {
+        return keccak256(abi.encode(address(this), creator, salt));
     }
 
     /// @notice USDC held but not yet tied to anyone (x402 sales, plain transfers).
@@ -354,6 +420,8 @@ contract Collective is Initializable, ReentrancyGuard {
     function _vote(uint256 id) internal {
         Proposal storage pr = _proposals[id];
         if (pr.executed) revert AlreadyExecuted();
+        if (pr.cancelled) revert ProposalCancelled();
+        if (pr.epoch != governanceEpoch) revert ProposalStale();
         if (hasVoted[id][msg.sender]) revert AlreadyVoted();
         hasVoted[id][msg.sender] = true;
         pr.votes += 1;
@@ -365,11 +433,13 @@ contract Collective is Initializable, ReentrancyGuard {
             Rules memory r = abi.decode(payload, (Rules));
             _validateRules(r);
             _rules = r;
+            governanceEpoch += 1;
         } else if (kind == Kind.AddMember) {
             address m = abi.decode(payload, (address));
             if (m == address(0) || isMember[m] || _members.length >= MAX_MEMBERS) revert BadMembers();
             isMember[m] = true;
             _members.push(m);
+            governanceEpoch += 1;
         } else if (kind == Kind.RemoveMember) {
             address m = abi.decode(payload, (address));
             if (!isMember[m] || _members.length == 1) revert BadMembers();
@@ -382,16 +452,26 @@ contract Collective is Initializable, ReentrancyGuard {
                     break;
                 }
             }
+            governanceEpoch += 1;
         } else if (kind == Kind.SetAgent) {
             agent = abi.decode(payload, (address));
+            governanceEpoch += 1;
         } else if (kind == Kind.SetPayee) {
             (address to, bool allowed) = abi.decode(payload, (address, bool));
             isPayee[to] = allowed;
         } else if (kind == Kind.ReleaseReserve) {
-            uint256 amount = abi.decode(payload, (uint256));
-            if (amount > reserve) revert InsufficientReserve();
-            reserve -= amount;
-            pool += amount;
+            // Paid straight to named recipients: parking it in the pool would let anyone buy
+            // credit late in the period and capture it.
+            (address[] memory to, uint256[] memory amounts) = abi.decode(payload, (address[], uint256[]));
+            if (to.length != amounts.length || to.length == 0) revert BadShares();
+            uint256 total;
+            for (uint256 i; i < amounts.length; ++i) total += amounts[i];
+            if (total > reserve) revert InsufficientReserve();
+            reserve -= total;
+            for (uint256 i; i < to.length; ++i) {
+                _payOut(period, to[i], amounts[i]);
+                emit ReserveReleased(to[i], amounts[i]);
+            }
         } else if (kind == Kind.Attribute) {
             (address member, uint256 amount) = abi.decode(payload, (address, uint256));
             _attribute(member, amount, ref);
@@ -401,7 +481,19 @@ contract Collective is Initializable, ReentrancyGuard {
         }
     }
 
+    /// @dev Quorum strictly above half, a real timelock and sane periods: no rule set lets one member act alone.
     function _validateRules(Rules memory r) internal pure {
-        if (r.reserveBps > BPS || r.quorumBps == 0 || r.quorumBps > BPS || r.periodLength == 0) revert BadRules();
+        if (
+            r.reserveBps > BPS || r.quorumBps <= BPS / 2 || r.quorumBps > BPS || r.timelock < MIN_TIMELOCK
+                || r.timelock > MAX_TIMELOCK || r.periodLength < MIN_PERIOD || r.periodLength > MAX_PERIOD
+        ) revert BadRules();
+    }
+
+    /// @dev Votes a new proposal needs, fixed at creation: ceil(quorum x members), never fewer than 2 with 2+ members.
+    function _votesNeeded() internal view returns (uint32) {
+        uint256 n = _members.length;
+        uint256 needed = (uint256(_rules.quorumBps) * n + BPS - 1) / BPS;
+        if (n >= 2 && needed < 2) needed = 2;
+        return uint32(needed);
     }
 }

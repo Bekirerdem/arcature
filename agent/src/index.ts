@@ -46,7 +46,9 @@ async function maybeDistribute(env: Env, chest: Address) {
 function cors(env: Env, req: Request): Record<string, string> {
   const origin = req.headers.get("origin") ?? "";
   const allowed = env.ALLOWED_ORIGINS.split(",").map((o) => o.trim());
-  return allowed.includes(origin) ? { "access-control-allow-origin": origin, "access-control-allow-headers": "content-type", "vary": "origin" } : {};
+  // preview deploys get their own subdomain on pages.dev
+  const preview = /^https:\/\/[a-z0-9-]+\.keyarc\.pages\.dev$/.test(origin);
+  return allowed.includes(origin) || preview ? { "access-control-allow-origin": origin, "access-control-allow-headers": "content-type", "vary": "origin" } : {};
 }
 
 const json = (body: unknown, status: number, headers: Record<string, string>) =>

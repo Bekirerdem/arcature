@@ -117,8 +117,8 @@ export function initLanding(root: HTMLElement): () => void {
   ] as const).forEach(([sel, r]) => attach(q(sel), r));
   const bInv = new Bead(S.so, tInv, 9, "2,000 USDC");
   const bRes = new Bead(S.so, tRes, 4.2, "200 · reserve");
-  const bAli = new Bead(S.so, tAli, 7.6, "1,080 · Ali");
-  const bAyse = new Bead(S.so, tAyse, 6.2, "720 · Ayşe");
+  const bAli = new Bead(S.so, tAli, 7.6, "1,080 · Bekir");
+  const bAyse = new Bead(S.so, tAyse, 6.2, "720 · Ömer");
   const beads = [bInv, bRes, bAli, bAyse];
 
   const tHold = new Rope(S.rules, q("#sender"), q("#agent"), { slack: 1.16 });

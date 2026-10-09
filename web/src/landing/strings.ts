@@ -30,7 +30,7 @@ export const L = defineStrings({
   "l.but.note2": ["Berlin client can't pay. No PayPal here. Wire is $45.", "Berlin'deki müşteri ödeyemiyor. Burada PayPal yok. Havale 45 dolar."],
   "l.but.note3": ["Ran out of cash in August. Nothing set aside.", "Ağustosta nakit bitti. Kenara hiçbir şey ayrılmamıştı."],
   "l.sheet.file": ["split_FINAL_v7(2).xlsx", "paylasim_SON_v7(2).xlsx"],
-  "l.sheet.edited": ["edited by Ali · 02:14", "Ali düzenledi · 02:14"],
+  "l.sheet.edited": ["edited by Bekir · 02:14", "Bekir düzenledi · 02:14"],
   "l.sheet.web": ["web p2", "web 2. aş."],
   "l.sheet.check": ["?? check", "?? bak"],
   "l.sheet.reserve": ["reserve", "yedek"],

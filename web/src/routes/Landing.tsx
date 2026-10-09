@@ -28,9 +28,9 @@ function SheetHalf({ side, t }: { side: "l" | "r"; t: T }) {
         </div>
         <table>
           <tbody>
-            <tr><td>Ali</td><td>{t("l.sheet.web")}</td><td className="q">40% ?</td></tr>
-            <tr><td>Ayşe</td><td>{t("l.sheet.web")}</td><td className="x">40%</td></tr>
-            <tr><td>Mehmet</td><td>api</td><td className="q">{t("l.sheet.check")}</td></tr>
+            <tr><td>Bekir</td><td>{t("l.sheet.web")}</td><td className="q">40% ?</td></tr>
+            <tr><td>Ömer</td><td>{t("l.sheet.web")}</td><td className="x">40%</td></tr>
+            <tr><td>Naim</td><td>api</td><td className="q">{t("l.sheet.check")}</td></tr>
             <tr><td>{t("l.sheet.reserve")}</td><td>—</td><td className="q">{t("l.sheet.forgot")}</td></tr>
           </tbody>
         </table>
@@ -111,11 +111,11 @@ function Board() {
             </div>
           </div>
 
-          <div className="card member hc lift" id="mAli" style={at("58vw", "16vh", "-4deg")}><i className="pin" /><div className="face">A</div><div className="name">Ali</div><div className="role">{t("l.role.frontend")}</div></div>
-          <div className="card member hc lift" id="mAyse" style={at("73vw", "12vh", "3deg")}><i className="pin" /><div className="face" style={{ background: "#7a2a1d" }}>Ay</div><div className="name">Ayşe</div><div className="role">{t("l.role.design")}</div></div>
-          <div className="card member hc lift" id="mMeh" style={at("86vw", "24vh", "-2deg")}><i className="pin" /><div className="face" style={{ background: "#2f4a3a" }}>M</div><div className="name">Mehmet</div><div className="role">{t("l.role.contracts")}</div></div>
-          <div className="card job hc lift" id="jWeb" style={at("61vw", "52vh", "2deg")}><i className="pin brass" /><span className="label">{t("l.job.berlin")}</span><h4>{t("l.job.web")}</h4><div className="who"><span className="chip">Ali 60%</span><span className="chip">Ayşe 40%</span></div></div>
-          <div className="card job hc lift" id="jApi" style={at("80vw", "60vh", "-3deg")}><i className="pin brass" /><span className="label">{t("l.job.agents")}</span><h4>{t("l.job.api")}</h4><div className="who"><span className="chip">Mehmet 100%</span></div></div>
+          <div className="card member hc lift" id="mAli" style={at("58vw", "16vh", "-4deg")}><i className="pin" /><div className="face">B</div><div className="name">Bekir</div><div className="role">{t("l.role.frontend")}</div></div>
+          <div className="card member hc lift" id="mAyse" style={at("73vw", "12vh", "3deg")}><i className="pin" /><div className="face" style={{ background: "#7a2a1d" }}>Ö</div><div className="name">Ömer</div><div className="role">{t("l.role.design")}</div></div>
+          <div className="card member hc lift" id="mMeh" style={at("86vw", "24vh", "-2deg")}><i className="pin" /><div className="face" style={{ background: "#2f4a3a" }}>N</div><div className="name">Naim</div><div className="role">{t("l.role.contracts")}</div></div>
+          <div className="card job hc lift" id="jWeb" style={at("61vw", "52vh", "2deg")}><i className="pin brass" /><span className="label">{t("l.job.berlin")}</span><h4>{t("l.job.web")}</h4><div className="who"><span className="chip">Bekir 60%</span><span className="chip">Ömer 40%</span></div></div>
+          <div className="card job hc lift" id="jApi" style={at("80vw", "60vh", "-3deg")}><i className="pin brass" /><span className="label">{t("l.job.agents")}</span><h4>{t("l.job.api")}</h4><div className="who"><span className="chip">Naim 100%</span></div></div>
         </div>
       </section>
 
@@ -145,10 +145,10 @@ function Board() {
             <span className="label">{t("l.so.invoice")}</span>
             <div className="row"><span className="note" style={{ fontSize: 19 }}>{t("l.so.client")}</span><span className="amount">{t("l.so.amount")}</span></div>
           </div>
-          <div className="card job lift" id="soJob" style={at("12vw", "42vh", "1.5deg")}><i className="pin brass" /><span className="label">{t("l.so.matched")}</span><h4>{t("l.job.web")}</h4><div className="who"><span className="chip">Ali 60%</span><span className="chip">Ayşe 40%</span></div></div>
+          <div className="card job lift" id="soJob" style={at("12vw", "42vh", "1.5deg")}><i className="pin brass" /><span className="label">{t("l.so.matched")}</span><h4>{t("l.job.web")}</h4><div className="who"><span className="chip">Bekir 60%</span><span className="chip">Ömer 40%</span></div></div>
           <div className="card reserve lift" id="res" style={at("38vw", "12vh", "-1deg")}><i className="pin" /><span className="label" style={{ position: "relative" }}>{t("l.so.reserve")}</span><span className="amount" style={{ position: "relative" }}><span className="odo" id="resAmt" data-max="200" /> USDC</span></div>
-          <div className="card payee lift" id="pAli" style={at("40vw", "50vh", "-3deg")}><i className="pin" /><span className="label">Ali · 60%</span><div className="amount"><span className="odo" id="aliAmt" data-max="1080" /> USDC</div></div>
-          <div className="card payee lift" id="pAyse" style={at("57vw", "55vh", "2.5deg")}><i className="pin" /><span className="label">Ayşe · 40%</span><div className="amount"><span className="odo" id="ayseAmt" data-max="720" /> USDC</div></div>
+          <div className="card payee lift" id="pAli" style={at("40vw", "50vh", "-3deg")}><i className="pin" /><span className="label">Bekir · 60%</span><div className="amount"><span className="odo" id="aliAmt" data-max="1080" /> USDC</div></div>
+          <div className="card payee lift" id="pAyse" style={at("57vw", "55vh", "2.5deg")}><i className="pin" /><span className="label">Ömer · 40%</span><div className="amount"><span className="odo" id="ayseAmt" data-max="720" /> USDC</div></div>
           <div className="burst" id="burst" />
           <div className="steps">
             <div className="step"><b>01</b><span>{t("l.so.step1")}</span></div>
@@ -179,7 +179,7 @@ function Board() {
             <span className="tally"><span className="odo" id="voteOdo" data-max="6" />/6</span>
             <h4>{t("l.rules.reserve3")}</h4>
             <div className="votes">
-              <Vote who="A" yes label={yes} /><Vote who="Ay" yes label={yes} /><Vote who="M" yes label={yes} />
+              <Vote who="B" yes label={yes} /><Vote who="Ö" yes label={yes} /><Vote who="N" yes label={yes} />
               <Vote who="S" yes label={yes} /><Vote who="E" yes={false} label={yes} /><Vote who="K" yes={false} label={yes} />
             </div>
           </div>

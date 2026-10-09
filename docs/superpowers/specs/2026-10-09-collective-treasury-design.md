@@ -1,6 +1,6 @@
 # Collective Treasury on Arc — Design Spec
 
-Date: 2026-10-09 · Status: draft, awaiting review · Working name: `arc-kolektif` (final name TBD)
+Date: 2026-10-09 · Status: draft, awaiting review · Name: **Arcature** (chosen 2026-10-09)
 
 ## 1. One sentence
 

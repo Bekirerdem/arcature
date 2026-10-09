@@ -63,7 +63,7 @@ export function OnArc({ children }: { children: ReactNode }) {
 export function Brand() {
   return (
     <Link className="brand" to="/">
-      <b>Orta</b>
+      <b>Arcature</b>
       <span>the guild chest, onchain</span>
     </Link>
   );

@@ -68,7 +68,7 @@ export default function Landing() {
       <div className="cursor" aria-hidden="true"><i className="c-needle" /><i className="c-head" /></div>
 
       <div className="strip">
-        <div className="brand"><div className="tape" /><b>Orta</b><span>the guild chest, onchain</span></div>
+        <div className="brand"><div className="tape" /><b>Arcature</b><span>the guild chest, onchain</span></div>
         <nav className="navcard" aria-label="Main">
           <a href="#but">Why</a>
           <a href="#so">How</a>
@@ -201,7 +201,7 @@ export default function Landing() {
           </div>
         </div>
       </section>
-      <footer className="foot"><span>Built on Arc · settled in USDC</span><span>Orta · live on Arc mainnet</span></footer>
+      <footer className="foot"><span>Built on Arc · settled in USDC</span><span>Arcature · live on Arc mainnet</span></footer>
     </div>
   );
 }

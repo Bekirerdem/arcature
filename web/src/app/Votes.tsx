@@ -2,7 +2,8 @@ import { useState } from "react";
 import { decodeAbiParameters, encodeAbiParameters, isAddress, type Address, type Hex } from "viem";
 import { collectiveAbi } from "../lib/abi";
 import { kindIndex, ProposalKind, type ProposalKindName } from "../lib/contracts";
-import { duration, pct, short, toUsdc, usdc } from "../lib/format";
+import { pct, short, toUsdc, usdc } from "../lib/format";
+import { useDuration, useLang } from "../lib/i18n";
 import { useTx } from "../lib/tx";
 import type { Chest, Proposal, Rules } from "./useChest";
 import { OnArc } from "./Wallet";
@@ -16,35 +17,35 @@ const RULES_T = [{
   ],
 }] as const;
 
-function describe(p: Proposal): string {
+function describe(p: Proposal, t: (k: string, v?: Record<string, string | number>) => string, dur: (s: number) => string): string {
   const k = ProposalKind[p.kind];
   try {
     switch (k) {
-      case "AddMember": return `Add ${short(decodeAbiParameters([{ type: "address" }], p.payload)[0])} as a member`;
-      case "RemoveMember": return `Remove ${short(decodeAbiParameters([{ type: "address" }], p.payload)[0])}`;
+      case "AddMember": return t("vote.d.add", { who: short(decodeAbiParameters([{ type: "address" }], p.payload)[0]) });
+      case "RemoveMember": return t("vote.d.remove", { who: short(decodeAbiParameters([{ type: "address" }], p.payload)[0]) });
       case "SetAgent": {
         const a = decodeAbiParameters([{ type: "address" }], p.payload)[0];
-        return /^0x0+$/.test(a) ? "Remove the agent" : `Make ${short(a)} the agent`;
+        return /^0x0+$/.test(a) ? t("vote.d.noAgent") : t("vote.d.agent", { who: short(a) });
       }
       case "SetPayee": {
         const [a, ok] = decodeAbiParameters([{ type: "address" }, { type: "bool" }], p.payload);
-        return ok ? `Allow bills to ${short(a)}` : `Stop bills to ${short(a)}`;
+        return t(ok ? "vote.d.payee" : "vote.d.noPayee", { who: short(a) });
       }
       case "ReleaseReserve": {
         const [to, amt] = decodeAbiParameters([{ type: "address[]" }, { type: "uint256[]" }], p.payload);
-        return `Release ${usdc(amt.reduce((s, x) => s + x, 0n))} USDC of reserve to ${to.map(short).join(", ")}`;
+        return t("vote.d.release", { amt: usdc(amt.reduce((s, x) => s + x, 0n)), who: to.map(short).join(", ") });
       }
       case "Attribute": {
         const [m, a] = decodeAbiParameters([{ type: "address" }, { type: "uint256" }], p.payload);
-        return `Credit ${usdc(a)} USDC of unlabelled income to ${short(m)}`;
+        return t("vote.d.attribute", { amt: usdc(a), who: short(m) });
       }
       case "Expense": {
         const [to, a] = decodeAbiParameters([{ type: "address" }, { type: "uint256" }], p.payload);
-        return `Pay ${usdc(a)} USDC to ${short(to)}`;
+        return t("vote.d.expense", { amt: usdc(a), who: short(to) });
       }
       case "SetRules": {
         const r = decodeAbiParameters(RULES_T, p.payload)[0];
-        return `New rules: reserve ${pct(r.reserveBps)} up to ${usdc(r.reserveTarget)}, pay out every ${duration(r.periodLength)}`;
+        return t("vote.d.rules", { pct: pct(r.reserveBps), amt: usdc(r.reserveTarget), d: dur(r.periodLength) });
       }
     }
   } catch { /* fall through */ }
@@ -53,6 +54,8 @@ function describe(p: Proposal): string {
 
 export function Votes({ chest, isMember, me, onChange }: { chest: Chest; isMember: boolean; me?: Address; onChange: () => void }) {
   const { send, busy } = useTx();
+  const { t } = useLang();
+  const dur = useDuration();
   const now = Math.floor(Date.now() / 1000);
   const open = chest.proposals.filter((p) => !p.executed && !p.cancelled && p.epoch === chest.governanceEpoch && now <= p.expiresAt);
   const past = chest.proposals.filter((p) => !open.includes(p)).slice(0, 6);
@@ -62,29 +65,29 @@ export function Votes({ chest, isMember, me, onChange }: { chest: Chest; isMembe
 
   return (
     <div className="card tilt-l">
-      <div className="label">votes</div>
-      <div className="h3" style={{ marginTop: 4 }}>Nobody moves money alone</div>
-      <p className="hint" style={{ marginTop: 6 }}>More than half of members must agree, then a {duration(chest.rules.timelock)} wait.</p>
+      <div className="label">{t("vote.label")}</div>
+      <div className="h3" style={{ marginTop: 4 }}>{t("vote.title")}</div>
+      <p className="hint" style={{ marginTop: 6 }}>{t("vote.hint", { d: dur(chest.rules.timelock) })}</p>
 
       <div className="stack" style={{ marginTop: 14 }}>
-        {open.length === 0 && <p className="note muted">Nothing on the ballot.</p>}
+        {open.length === 0 && <p className="note muted">{t("vote.none")}</p>}
         {open.map((p) => {
           const ready = p.votes >= p.votesNeeded && now >= p.executableAt;
           return (
             <div key={p.id} className="card no-pin" style={{ background: "var(--paper-2)", animation: "none" }}>
               <div className="between">
-                <span className="mono">#{p.id} · {describe(p)}</span>
+                <span className="mono">#{p.id} · {describe(p, t, dur)}</span>
                 <span className="stamp">{p.votes}/{p.votesNeeded}</span>
               </div>
               <div className="hint" style={{ marginTop: 6 }}>
-                {now < p.executableAt ? `can run in ${duration(p.executableAt - now)}` : `open for ${duration(p.expiresAt - now)}`} · by {short(p.proposer)}
+                {now < p.executableAt ? t("vote.canRun", { d: dur(p.executableAt - now) }) : t("vote.openFor", { d: dur(p.expiresAt - now) })} · {t("vote.by", { who: short(p.proposer) })}
               </div>
               <div className="row" style={{ marginTop: 10 }}>
                 <OnArc>
-                  {isMember && !p.iVoted && <button className="btn small" disabled={busy} onClick={() => act("Vote", "vote", p.id)}>Vote yes</button>}
-                  {isMember && p.iVoted && <button className="btn ghost small" disabled={busy} onClick={() => act("Take back vote", "unvote", p.id)}>Take back my vote</button>}
-                  {ready && <button className="btn red small" disabled={busy} onClick={() => act("Carry out", "execute", p.id)}>Carry it out</button>}
-                  {me && p.proposer.toLowerCase() === me.toLowerCase() && <button className="btn ghost small" disabled={busy} onClick={() => act("Withdraw", "cancel", p.id)}>Withdraw</button>}
+                  {isMember && !p.iVoted && <button className="btn small" disabled={busy} onClick={() => act(t("tx.vote"), "vote", p.id)}>{t("vote.yes")}</button>}
+                  {isMember && p.iVoted && <button className="btn ghost small" disabled={busy} onClick={() => act(t("tx.unvote"), "unvote", p.id)}>{t("vote.takeBack")}</button>}
+                  {ready && <button className="btn red small" disabled={busy} onClick={() => act(t("tx.execute"), "execute", p.id)}>{t("vote.carry")}</button>}
+                  {me && p.proposer.toLowerCase() === me.toLowerCase() && <button className="btn ghost small" disabled={busy} onClick={() => act(t("tx.cancel"), "cancel", p.id)}>{t("vote.withdraw")}</button>}
                 </OnArc>
               </div>
             </div>
@@ -96,9 +99,9 @@ export function Votes({ chest, isMember, me, onChange }: { chest: Chest; isMembe
 
       {past.length > 0 && (
         <details style={{ marginTop: 14 }}>
-          <summary className="label" style={{ cursor: "pointer" }}>past votes</summary>
+          <summary className="label" style={{ cursor: "pointer" }}>{t("vote.past")}</summary>
           <ul className="mono" style={{ marginTop: 8, paddingLeft: 16, display: "grid", gap: 4 }}>
-            {past.map((p) => <li key={p.id}>#{p.id} {describe(p)} — {p.executed ? "carried out" : p.cancelled ? "withdrawn" : "lapsed"}</li>)}
+            {past.map((p) => <li key={p.id}>#{p.id} {describe(p, t, dur)} — {t(p.executed ? "vote.carried" : p.cancelled ? "vote.withdrawn" : "vote.lapsed")}</li>)}
           </ul>
         </details>
       )}
@@ -108,6 +111,7 @@ export function Votes({ chest, isMember, me, onChange }: { chest: Chest; isMembe
 
 function Propose({ chest, onDone }: { chest: Chest; onDone: () => void }) {
   const { send, busy } = useTx();
+  const { t } = useLang();
   const [kind, setKind] = useState<ProposalKindName>("AddMember");
   const [addr, setAddr] = useState("");
   const [amount, setAmount] = useState("");
@@ -117,15 +121,15 @@ function Propose({ chest, onDone }: { chest: Chest; onDone: () => void }) {
   let error = "";
   try {
     if (kind === "AddMember" || kind === "RemoveMember" || kind === "SetAgent") {
-      if (!isAddress(addr.trim())) error = "Enter a wallet address.";
+      if (!isAddress(addr.trim())) error = t("vote.err.addr");
       else payload = encodeAbiParameters([{ type: "address" }], [addr.trim() as Address]);
     } else if (kind === "SetPayee") {
-      if (!isAddress(addr.trim())) error = "Enter the address bills go to.";
+      if (!isAddress(addr.trim())) error = t("vote.err.payee");
       else payload = encodeAbiParameters([{ type: "address" }, { type: "bool" }], [addr.trim() as Address, true]);
     } else if (kind === "ReleaseReserve") {
       const total = toUsdc(amount || "0");
-      if (total <= 0n) error = "Enter an amount.";
-      else if (total > chest.reserve) error = `Reserve holds ${usdc(chest.reserve)} USDC.`;
+      if (total <= 0n) error = t("vote.err.amount");
+      else if (total > chest.reserve) error = t("vote.err.reserveMax", { amt: usdc(chest.reserve) });
       else {
         // split evenly between current members; remainder to the first
         const n = BigInt(chest.members.length);
@@ -135,19 +139,19 @@ function Propose({ chest, onDone }: { chest: Chest; onDone: () => void }) {
       }
     } else if (kind === "SetRules") {
       const r = Number(reservePct);
-      if (!(r >= 0 && r <= 100)) error = "Reserve share must be 0–100%.";
+      if (!(r >= 0 && r <= 100)) error = t("vote.err.pct");
       else {
         const next: Rules = { ...chest.rules, reserveBps: Math.round(r * 100) };
         payload = encodeAbiParameters(RULES_T, [next]);
       }
     }
   } catch {
-    error = "Check the values.";
+    error = t("vote.err.check");
   }
 
   async function propose() {
     if (!payload) return;
-    const ok = await send("Open vote", {
+    const ok = await send(t("tx.propose"), {
       address: chest.address,
       abi: collectiveAbi,
       functionName: "propose",
@@ -158,22 +162,19 @@ function Propose({ chest, onDone }: { chest: Chest; onDone: () => void }) {
 
   return (
     <div className="stack" style={{ marginTop: 16, paddingTop: 16, borderTop: "1px dashed rgba(29,26,22,.3)" }}>
-      <span className="label">open a vote</span>
+      <span className="label">{t("vote.open")}</span>
       <select className="input" value={kind} onChange={(e) => setKind(e.target.value as ProposalKindName)}>
-        <option value="AddMember">Add a member</option>
-        <option value="RemoveMember">Remove a member</option>
-        <option value="SetAgent">Set the agent</option>
-        <option value="SetPayee">Allow a bill recipient</option>
-        <option value="ReleaseReserve">Release reserve to members (equal split)</option>
-        <option value="SetRules">Change reserve share</option>
+        {(["AddMember", "RemoveMember", "SetAgent", "SetPayee", "ReleaseReserve", "SetRules"] as const).map((k) => (
+          <option key={k} value={k}>{t(`vote.k.${k}`)}</option>
+        ))}
       </select>
       {(kind === "AddMember" || kind === "RemoveMember" || kind === "SetAgent" || kind === "SetPayee") && (
         <input className="input" value={addr} onChange={(e) => setAddr(e.target.value)} placeholder="0x…" />
       )}
-      {kind === "ReleaseReserve" && <input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`up to ${usdc(chest.reserve)} USDC`} />}
-      {kind === "SetRules" && <input className="input" inputMode="decimal" value={reservePct} onChange={(e) => setReservePct(e.target.value)} placeholder="reserve %" />}
+      {kind === "ReleaseReserve" && <input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t("vote.upTo", { amt: usdc(chest.reserve) })} />}
+      {kind === "SetRules" && <input className="input" inputMode="decimal" value={reservePct} onChange={(e) => setReservePct(e.target.value)} placeholder={t("vote.pctPh")} />}
       {error && <div className="error">{error}</div>}
-      <OnArc><button className="btn small" disabled={!payload || busy} onClick={propose}>Put it to a vote</button></OnArc>
+      <OnArc><button className="btn small" disabled={!payload || busy} onClick={propose}>{t("vote.submit")}</button></OnArc>
     </div>
   );
 }

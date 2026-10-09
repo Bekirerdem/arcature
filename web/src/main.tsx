@@ -4,8 +4,10 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import { WagmiProvider } from "wagmi";
 import { wagmiConfig } from "./lib/arc";
+import { LangProvider } from "./lib/i18n";
 import { ToastProvider } from "./lib/tx";
 import "./styles/app.css";
+import "./app/strings";
 
 const Landing = lazy(() => import("./routes/Landing"));
 const Home = lazy(() => import("./app/Home"));
@@ -32,9 +34,11 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <ToastProvider>
-          <RouterProvider router={router} />
-        </ToastProvider>
+        <LangProvider>
+          <ToastProvider>
+            <RouterProvider router={router} />
+          </ToastProvider>
+        </LangProvider>
       </QueryClientProvider>
     </WagmiProvider>
   </StrictMode>,

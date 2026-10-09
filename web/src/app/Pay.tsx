@@ -5,8 +5,9 @@ import { encodeFunctionData, isAddress, isHex, type Address, type Hex } from "vi
 import { useConnection } from "wagmi";
 import { collectiveAbi, erc20Abi, memoAbi } from "../lib/abi";
 import { explorerTx, publicClient } from "../lib/arc";
-import { InvoiceStatus, MEMO, USDC } from "../lib/contracts";
+import { MEMO, USDC } from "../lib/contracts";
 import { pct, short, usdc } from "../lib/format";
+import { useLang } from "../lib/i18n";
 import { useTx } from "../lib/tx";
 import { Brand, OnArc, useUsdcBalance, Wallet } from "./Wallet";
 
@@ -37,6 +38,7 @@ export default function Pay() {
   const { send, busy } = useTx();
   const qc = useQueryClient();
   const [paidTx, setPaidTx] = useState<Hex | null>(null);
+  const { t } = useLang();
 
   const d = inv.data;
   const exists = d && d.status !== 0;
@@ -47,7 +49,7 @@ export default function Pay() {
   async function approve() {
     if (!d || !chest) return;
     // approve exactly this invoice, never an open-ended allowance
-    const r = await send("Allow payment", { address: USDC, abi: erc20Abi, functionName: "approve", args: [chest, d.amount] });
+    const r = await send(t("tx.allow"), { address: USDC, abi: erc20Abi, functionName: "approve", args: [chest, d.amount] });
     if (r) qc.invalidateQueries({ queryKey: ["invoice", chest, id, me] });
   }
 
@@ -55,7 +57,7 @@ export default function Pay() {
     if (!d || !chest || !id) return;
     // Pay through Arc's Memo contract: the invoice id is written to Arc's memo log, the payer stays msg.sender.
     const data = encodeFunctionData({ abi: collectiveAbi, functionName: "payInvoice", args: [id, d.amount] });
-    const r = await send("Pay invoice", { address: MEMO, abi: memoAbi, functionName: "memo", args: [chest, data, id, "0x"] });
+    const r = await send(t("tx.payInvoice"), { address: MEMO, abi: memoAbi, functionName: "memo", args: [chest, data, id, "0x"] });
     if (r) {
       setPaidTx(r.transactionHash);
       qc.invalidateQueries();
@@ -67,42 +69,42 @@ export default function Pay() {
       <aside className="rail"><Brand /></aside>
       <main className="main">
         {!chest || !id ? (
-          <div className="card"><p className="note">This pay link is broken.</p></div>
+          <div className="card"><p className="note">{t("pay.broken")}</p></div>
         ) : inv.isLoading ? (
           <div className="card"><div className="skeleton" style={{ height: 220 }} /></div>
         ) : !exists ? (
-          <div className="card"><p className="note">There's no invoice behind this link.</p></div>
+          <div className="card"><p className="note">{t("pay.missing")}</p></div>
         ) : (
           <>
             <div className="card tape no-pin">
-              <div className="label">invoice from</div>
+              <div className="label">{t("pay.from")}</div>
               <h1 className="title" style={{ marginTop: 6 }}>{d!.name}</h1>
-              <div className="amount" style={{ marginTop: 18, fontSize: 44 }}>{usdc(d!.amount)}<small>USDC on Arc</small></div>
-              <span className={`chip ${d!.status === 2 ? "paid" : "open"}`} style={{ marginTop: 12 }}>{InvoiceStatus[d!.status].toLowerCase()}</span>
+              <div className="amount" style={{ marginTop: 18, fontSize: 44 }}>{usdc(d!.amount)}<small>{t("pay.onArc")}</small></div>
+              <span className={`chip ${d!.status === 2 ? "paid" : "open"}`} style={{ marginTop: 12 }}>{t(`inv.status.${d!.status}`)}</span>
             </div>
             <div className="card tilt-l">
-              <div className="label">who did the work</div>
+              <div className="label">{t("pay.who")}</div>
               <ul className="mono" style={{ listStyle: "none", marginTop: 10, display: "grid", gap: 6 }}>
                 {d!.contributors.map((m, k) => <li key={m} className="between"><span>{short(m)}</span><span>{pct(d!.sharesBps[k])}</span></li>)}
               </ul>
-              <p className="hint" style={{ marginTop: 12 }}>Your payment lands in the team's chest on Arc. A reserve is set aside first, the rest is shared by these percentages at the end of the period.</p>
+              <p className="hint" style={{ marginTop: 12 }}>{t("pay.explain")}</p>
             </div>
             {d!.status === 1 && !paidTx && (
               <div className="card ink">
-                <div className="label">pay</div>
+                <div className="label">{t("pay.label")}</div>
                 <ol className="mono" style={{ marginTop: 10, paddingLeft: 18, display: "grid", gap: 6 }}>
-                  <li style={{ opacity: approved ? 0.5 : 1 }}>Allow exactly {usdc(d!.amount)} USDC</li>
-                  <li>Pay — the invoice reference is recorded on Arc</li>
+                  <li style={{ opacity: approved ? 0.5 : 1 }}>{t("pay.step1", { amt: usdc(d!.amount) })}</li>
+                  <li>{t("pay.step2")}</li>
                 </ol>
-                {me && bal.data !== undefined && <p className="mono" style={{ marginTop: 10, opacity: 0.8 }}>You have {usdc(bal.data)} USDC on Arc.</p>}
-                {wrongPayer && <p className="error" style={{ marginTop: 10 }}>This invoice is addressed to {short(d!.payer)}.</p>}
-                {short_ && <p className="error" style={{ marginTop: 10 }}>Not enough USDC on Arc for this invoice.</p>}
+                {me && bal.data !== undefined && <p className="mono" style={{ marginTop: 10, opacity: 0.8 }}>{t("pay.have", { amt: usdc(bal.data) })}</p>}
+                {wrongPayer && <p className="error" style={{ marginTop: 10 }}>{t("pay.wrongPayer", { who: short(d!.payer) })}</p>}
+                {short_ && <p className="error" style={{ marginTop: 10 }}>{t("pay.short")}</p>}
                 <div className="row" style={{ marginTop: 16 }}>
                   <OnArc>
                     {!approved ? (
-                      <button className="btn" disabled={busy || !!wrongPayer || !!short_} onClick={approve}>1 · Allow {usdc(d!.amount)} USDC</button>
+                      <button className="btn" disabled={busy || !!wrongPayer || !!short_} onClick={approve}>{t("pay.allow", { amt: usdc(d!.amount) })}</button>
                     ) : (
-                      <button className="btn red" disabled={busy || !!wrongPayer || !!short_} onClick={pay}>2 · Pay {usdc(d!.amount)} USDC</button>
+                      <button className="btn red" disabled={busy || !!wrongPayer || !!short_} onClick={pay}>{t("pay.pay", { amt: usdc(d!.amount) })}</button>
                     )}
                   </OnArc>
                 </div>
@@ -111,17 +113,17 @@ export default function Pay() {
             {(d!.status === 2 || paidTx) && (
               <div className="card kraft tilt-r">
                 <span className="stamp">PAID · ARC</span>
-                <p className="note" style={{ marginTop: 12 }}>Thank you. The team's chest has it.</p>
-                {paidTx && <a className="mono" href={explorerTx(paidTx)} target="_blank" rel="noreferrer">see it on Arc ↗</a>}
+                <p className="note" style={{ marginTop: 12 }}>{t("pay.thanks")}</p>
+                {paidTx && <a className="mono" href={explorerTx(paidTx)} target="_blank" rel="noreferrer">{t("pay.see")}</a>}
               </div>
             )}
-            {d!.status === 3 && <div className="card"><p className="note">This invoice was cancelled by the team.</p></div>}
+            {d!.status === 3 && <div className="card"><p className="note">{t("pay.cancelled")}</p></div>}
           </>
         )}
       </main>
       <aside className="side">
         <Wallet />
-        {chest && <Link className="btn ghost small" style={{ alignSelf: "flex-start" }} to={`/c/${chest}`}>Look inside this chest →</Link>}
+        {chest && <Link className="btn ghost small" style={{ alignSelf: "flex-start" }} to={`/c/${chest}`}>{t("pay.lookInside")}</Link>}
       </aside>
     </div>
   );

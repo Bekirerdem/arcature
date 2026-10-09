@@ -2,21 +2,23 @@ import { createContext, useCallback, useContext, useState, type ReactNode } from
 import { BaseError, ContractFunctionRevertedError, type Hash } from "viem";
 import { useConnection, useSwitchChain, useWriteContract } from "wagmi";
 import { arc, explorerTx, publicClient } from "./arc";
+import { useLang } from "./i18n";
 
 type Toast = { kind: "pending" | "ok" | "error"; text: string; hash?: Hash };
 const ToastCtx = createContext<(t: Toast | null) => void>(() => {});
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<Toast | null>(null);
+  const { t } = useLang();
   return (
     <ToastCtx.Provider value={setToast}>
       {children}
       {toast && (
         <div className={`toast card no-pin ${toast.kind === "error" ? "" : "kraft"}`} role="status" onClick={() => setToast(null)}>
-          <div className="label">{toast.kind === "pending" ? "on its way" : toast.kind === "ok" ? "done" : "didn't go through"}</div>
+          <div className="label">{t(toast.kind === "pending" ? "toast.pending" : toast.kind === "ok" ? "toast.ok" : "toast.error")}</div>
           <p className="mono" style={{ marginTop: 6 }}>{toast.text}</p>
           {toast.hash && (
-            <a className="mono" href={explorerTx(toast.hash)} target="_blank" rel="noreferrer">view on Arc explorer ↗</a>
+            <a className="mono" href={explorerTx(toast.hash)} target="_blank" rel="noreferrer">{t("toast.view")}</a>
           )}
         </div>
       )}
@@ -36,37 +38,21 @@ export function useArcGuard() {
 }
 
 /** Human-readable reason from a viem error (custom errors from the contract included). */
-export function reason(e: unknown): string {
+export function reason(e: unknown, t: (k: string) => string): string {
   if (e instanceof BaseError) {
     const revert = e.walk((x) => x instanceof ContractFunctionRevertedError);
     if (revert instanceof ContractFunctionRevertedError) {
       const name = revert.data?.errorName ?? "";
-      return plainError[name] ?? (name || revert.shortMessage);
+      const key = `err.${name}`;
+      const msg = t(key);
+      return msg !== key ? msg : name || revert.shortMessage;
     }
-    if (e.shortMessage.toLowerCase().includes("user rejected")) return "You cancelled it in the wallet.";
+    if (e.shortMessage.toLowerCase().includes("user rejected")) return t("err.rejected");
     return e.shortMessage;
   }
   return e instanceof Error ? e.message : String(e);
 }
 
-const plainError: Record<string, string> = {
-  NotAMember: "That address isn't a member of this chest.",
-  NotMemberOrAgent: "Only members can do this.",
-  BadShares: "Shares must add up to 100%.",
-  BadRules: "Those rules aren't allowed: more than half must vote and the wait must be at least 1 hour.",
-  InvoiceNotOpen: "This invoice is already paid or cancelled.",
-  WrongPayer: "This invoice is addressed to a different payer.",
-  AmountMismatch: "The invoice amount changed. Reload and try again.",
-  PeriodNotOver: "The period isn't over yet.",
-  NoQuorum: "Not enough votes yet.",
-  TimelockActive: "Still in the waiting time.",
-  ProposalExpired: "This vote expired.",
-  ProposalStale: "Members or rules changed since this vote opened; open a new one.",
-  AlreadyVoted: "You already voted on this.",
-  AboveCap: "Above the limit; it needs a vote.",
-  InsufficientPool: "Not enough in this period's pot.",
-  InsufficientReserve: "Not enough in the reserve.",
-};
 
 type WriteArgs = Parameters<ReturnType<typeof useWriteContract>["writeContractAsync"]>[0];
 
@@ -74,26 +60,27 @@ type WriteArgs = Parameters<ReturnType<typeof useWriteContract>["writeContractAs
 export function useTx() {
   const { writeContractAsync } = useWriteContract();
   const toast = useToast();
+  const { t } = useLang();
   const [busy, setBusy] = useState(false);
   const send = useCallback(
     async (label: string, args: WriteArgs) => {
       setBusy(true);
       try {
-        toast({ kind: "pending", text: `${label}: confirm in your wallet…` });
+        toast({ kind: "pending", text: t("toast.confirm", { label }) });
         const hash = await writeContractAsync({ ...args, chainId: arc.id } as WriteArgs);
-        toast({ kind: "pending", text: `${label}: waiting for Arc…`, hash });
+        toast({ kind: "pending", text: t("toast.waiting", { label }), hash });
         const receipt = await publicClient.waitForTransactionReceipt({ hash });
-        if (receipt.status !== "success") throw new Error("Transaction reverted on Arc.");
-        toast({ kind: "ok", text: `${label}: done.`, hash });
+        if (receipt.status !== "success") throw new Error(t("err.reverted"));
+        toast({ kind: "ok", text: t("toast.done", { label }), hash });
         return receipt;
       } catch (e) {
-        toast({ kind: "error", text: `${label}: ${reason(e)}` });
+        toast({ kind: "error", text: `${label}: ${reason(e, t)}` });
         return null;
       } finally {
         setBusy(false);
       }
     },
-    [writeContractAsync, toast],
+    [writeContractAsync, toast, t],
   );
   return { send, busy };
 }
